@@ -1,0 +1,2702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Production Transfer App</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1720;
+    --panel:#17222e;
+    --panel-2:#1e2c3a;
+    --line:#2a3948;
+    --text:#eaf0f6;
+    --muted:#8ea0b3;
+    --prod:#3d7ef5;
+    --ware:#f0973d;
+    --good:#33c47a;
+    --bad:#f0554d;
+    --accent:#3d7ef5;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+    padding:16px;
+    padding-bottom:60px;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding-top:88px;}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.2px;}
+  .sub{color:var(--muted);font-size:12.5px;margin-top:2px;}
+  .badge{font-size:11px;color:var(--muted);border:1px solid var(--line);padding:4px 8px;border-radius:20px;}
+  .role-badge{font-size:11px;color:var(--accent);border:1px solid var(--accent);padding:4px 10px;border-radius:20px;font-weight:700;}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
+
+  /* Login */
+  #loginOverlay{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+  #loginCard{max-width:360px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px 24px;}
+  #loginCard h2{margin:0 0 4px;font-size:20px;}
+  #loginCard .sub{margin-bottom:20px;}
+  #loginCard input{width:100%;padding:13px;font-size:15px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);margin-bottom:12px;}
+  #loginCard button{width:100%;padding:14px;font-size:15px;font-weight:700;border:none;border-radius:10px;background:var(--accent);color:#06111f;cursor:pointer;margin-top:6px;}
+  #loginError{color:var(--bad);font-size:13px;margin-top:6px;display:none;}
+  #appRoot{display:none;}
+
+  #scanBtn{width:100%;padding:16px;font-size:16px;font-weight:700;border:none;border-radius:var(--radius);background:linear-gradient(135deg,var(--prod),var(--ware));color:#fff;cursor:pointer;}
+  #scanBtn:active{transform:scale(0.99);}
+
+  #readerWrap{display:none;margin-top:14px;}
+  #reader{width:100%;border-radius:12px;overflow:hidden;border:1px solid var(--line);}
+  #cancelScanBtn{width:100%;margin-top:10px;padding:12px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;}
+
+  #resultCard{display:none;}
+  .dir-choice{display:flex;gap:10px;margin-bottom:14px;}
+  .dir-option{flex:1;padding:14px 8px;border-radius:12px;border:2px solid var(--line);background:var(--panel-2);color:var(--text);font-size:13px;font-weight:700;text-align:center;cursor:pointer;line-height:1.3;}
+  .dir-option .arrow{display:block;font-size:20px;margin-bottom:4px;}
+  .dir-option.selected-prod{border-color:var(--prod);background:rgba(61,126,245,0.18);color:var(--prod);}
+  .dir-option.selected-ware{border-color:var(--ware);background:rgba(240,151,61,0.18);color:var(--ware);}
+
+  .shift-choice{display:flex;gap:8px;margin-bottom:14px;}
+  .shift-option{flex:1;padding:11px 4px;border-radius:10px;border:2px solid var(--line);background:var(--panel-2);color:var(--text);font-size:12.5px;font-weight:700;text-align:center;cursor:pointer;}
+  .shift-option.selected{border-color:var(--good);background:rgba(51,196,122,0.18);color:var(--good);}
+
+  .date-row{display:flex;gap:10px;margin-bottom:14px;}
+  .date-row > div{flex:1;}
+  input[type=date]{width:100%;padding:11px;font-size:14px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);}
+  input[type=text],input[type=number]{width:100%;padding:11px;font-size:14px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);}
+  input:focus{outline:2px solid var(--accent);}
+
+  .field-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
+  .field-value{font-size:15px;font-weight:600;margin-bottom:12px;line-height:1.35;}
+  .field-value.code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;}
+
+  .row-btns{display:flex;gap:10px;margin-top:14px;}
+  .btn{flex:1;padding:13px;border-radius:10px;border:none;font-weight:700;font-size:14.5px;cursor:pointer;}
+  .btn-save{background:var(--good);color:#06251b;}
+  .btn-cancel{background:transparent;border:1px solid var(--line);color:var(--muted);}
+
+  #notFoundNote{color:var(--bad);font-size:13px;margin-top:8px;display:none;}
+
+  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .section-header h2{font-size:14px;margin:0;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+  .link-btn{background:none;border:none;color:var(--bad);font-size:12px;cursor:pointer;}
+
+  .entry{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);gap:10px;}
+  .entry:last-child{border-bottom:none;}
+  .entry-check{margin-top:3px;flex-shrink:0;}
+  .entry-left{flex:1;min-width:0;}
+  .entry-name{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .entry-meta{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .entry-right{text-align:right;flex-shrink:0;}
+  .entry-qty{font-size:15px;font-weight:700;}
+  .entry-dir{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:10px;margin-top:4px;display:inline-block;}
+  .dir-prod{background:rgba(61,126,245,0.18);color:var(--prod);}
+  .dir-ware{background:rgba(240,151,61,0.18);color:var(--ware);}
+  .entry-actions{margin-top:6px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;}
+  .entry-actions button{background:none;border:none;font-size:11px;cursor:pointer;padding:3px 6px;border-radius:6px;font-weight:700;}
+  .edit-btn{color:var(--muted);}
+  .del-btn{color:var(--bad);}
+  .approve-btn{color:#06251b;background:var(--good) !important;}
+  .reject-btn{color:#fff;background:var(--bad) !important;}
+  .cancel-btn{color:var(--muted);border:1px solid var(--line) !important;}
+  .status-pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;display:inline-block;margin-top:4px;}
+  .status-pending{background:rgba(240,151,61,0.18);color:var(--ware);}
+  .status-rejected{background:rgba(240,85,77,0.18);color:var(--bad);}
+
+  #emptyState{color:var(--muted);font-size:13px;text-align:center;padding:20px 0;}
+
+  #statusMsg{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--panel-2);border:1px solid var(--line);padding:10px 18px;border-radius:20px;font-size:13px;display:none;z-index:50;max-width:90%;text-align:center;}
+
+  #formModalOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center;padding:16px;}
+
+  #printForm{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #printForm, #printForm *{visibility:visible;}
+    #printForm{display:block;position:absolute;top:0;left:0;width:100%;}
+  }
+  .pf-page{background:#fff;color:#000;padding:24px;font-family:Georgia,'Times New Roman',serif;page-break-after:always;}
+  .pf-header-table{width:100%;border-collapse:collapse;margin-bottom:14px;}
+  .pf-header-table td{border:1px solid #000;padding:6px 10px;font-size:13px;}
+  .pf-doc-title{font-size:16px;font-weight:bold;text-align:center;}
+  .pf-doc-no{font-size:14px;font-weight:bold;text-align:center;}
+  .pf-meta-row{display:flex;justify-content:space-between;margin:10px 0;font-size:13px;}
+  .pf-meta-row span{border-bottom:1px solid #000;padding:2px 6px;min-width:90px;display:inline-block;}
+  .pf-table{width:100%;border-collapse:collapse;margin-top:10px;}
+  .pf-table th,.pf-table td{border:1px solid #000;padding:6px;font-size:11.5px;text-align:center;}
+  .pf-table th{background:#eee;}
+  .pf-sign-table{width:100%;border-collapse:collapse;margin-top:30px;}
+  .pf-sign-table td{border:1px solid #000;padding:20px 10px 6px;font-size:12px;vertical-align:bottom;}
+  .pf-sign-table .sign-label{font-weight:bold;padding:6px 10px;vertical-align:top;}
+</style>
+</head>
+<body>
+
+<div id="loginOverlay">
+  <div id="loginCard">
+    <h2>Production Login</h2>
+    <div class="sub">Sign in to open the Production scan &amp; transfer system.</div>
+    <input type="text" id="loginUser" placeholder="Username" autocomplete="username">
+    <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password">
+    <button id="loginBtn">Log In</button>
+    <div id="loginError">Incorrect username or password.</div>
+  </div>
+</div>
+
+<div id="appRoot">
+<button id="itemDbBtn" style="position:fixed;top:12px;left:12px;z-index:60;background:var(--panel);border:1px solid var(--line);color:var(--text);font-size:12px;font-weight:700;padding:8px 12px;border-radius:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);">📋 Items</button>
+<button id="backupsBtn" style="position:fixed;top:52px;left:12px;z-index:60;background:var(--panel);border:1px solid var(--line);color:var(--text);font-size:12px;font-weight:700;padding:8px 12px;border-radius:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);">🕐 Backups</button>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Production Transfers</h1>
+      <div class="sub">Linked with Warehouse &middot; needs their approval</div>
+    </div>
+    <div style="text-align:right;">
+      <div class="role-badge">Production</div>
+      <div><button id="settingsBtn" style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;margin-top:6px;margin-right:8px;">⚙️ Settings</button><button id="refreshBtn" style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;margin-top:6px;margin-right:8px;">🔄 Refresh</button><button id="logoutBtn" style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;margin-top:6px;">Log out</button></div>
+    </div>
+  </header>
+
+  <div id="approvalBadge" style="display:none;background:rgba(240,151,61,0.15);color:var(--ware);border:1px solid var(--ware);border-radius:10px;padding:9px 12px;font-size:12.5px;font-weight:700;margin-bottom:14px;text-align:center;"></div>
+
+  <button id="allMovementsBtn" style="width:100%;padding:13px;font-size:14px;font-weight:700;border:none;border-radius:12px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);cursor:pointer;margin-bottom:14px;">🔎 Search All Movements (by Date)</button>
+
+  <div id="notificationsCard" class="card" style="display:none;">
+    <div class="section-header">
+      <h2>Notifications</h2>
+      <button id="clearNotificationsBtn" class="link-btn" style="color:var(--muted);">Clear all</button>
+    </div>
+    <div id="notificationsList"></div>
+  </div>
+
+  <div class="card">
+    <button id="scanBtn">📷 Scan with Camera</button>
+    <div id="readerWrap">
+      <div id="reader"></div>
+      <button id="cancelScanBtn">Cancel scan</button>
+    </div>
+    <div id="cameraErrorNote" style="display:none;color:var(--bad);font-size:12.5px;margin-top:10px;line-height:1.4;"></div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin:14px 0;">
+      <div style="flex:1;height:1px;background:var(--line);"></div>
+      <div style="color:var(--muted);font-size:11px;">OR</div>
+      <div style="flex:1;height:1px;background:var(--line);"></div>
+    </div>
+
+    <label for="photoInput" class="btn" style="display:block;text-align:center;background:var(--panel-2);border:1px solid var(--line);color:var(--text);cursor:pointer;">
+      🖼️ Upload / Take Photo of QR Code
+    </label>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;">
+
+    <div style="margin-top:10px;">
+      <input type="text" id="manualCodeInput" placeholder="Or type the item code manually">
+      <button id="manualCodeBtn" class="btn" style="width:100%;margin-top:8px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);">Use this code</button>
+    </div>
+  </div>
+
+  <div class="card" id="resultCard">
+    <div class="field-label">Scanned Item</div>
+    <div class="field-value code" id="resCode">—</div>
+    <div class="field-value" id="resName">—</div>
+
+    <div class="field-label">Date (change if entering late/backdated data)</div>
+    <input type="date" id="entryDateInput" style="margin-bottom:12px;">
+    <div class="field-label">Time recorded</div>
+    <div class="field-value" id="resTime">—</div>
+
+    <div class="field-label">Where is it going?</div>
+    <div class="dir-choice">
+      <div class="dir-option" id="optProdWare" data-dir="Production → Warehouse">
+        <span class="arrow">🏭→🏬</span>Production → Warehouse
+      </div>
+      <div class="dir-option" id="optWareProd" data-dir="Warehouse → Production">
+        <span class="arrow">🏬→🏭</span>Warehouse → Production
+      </div>
+    </div>
+
+    <div class="field-label">Shift</div>
+    <div class="shift-choice">
+      <div class="shift-option" id="shiftDay" data-shift="DAY">☀️ DAY<br><span style="font-size:10px;font-weight:400;">8:00 AM – 8:00 PM</span></div>
+      <div class="shift-option" id="shiftNight" data-shift="NIGHT">🌙 NIGHT<br><span style="font-size:10px;font-weight:400;">8:00 PM – 8:00 AM</span></div>
+    </div>
+
+    <div class="field-label">Quantity</div>
+    <input type="number" id="qtyInput" placeholder="Enter quantity moved" min="0" inputmode="numeric">
+
+    <div class="date-row" style="margin-top:14px;">
+      <div>
+        <div class="field-label">Production Date</div>
+        <input type="date" id="prodDateInput">
+      </div>
+      <div>
+        <div class="field-label">Expiry Date</div>
+        <input type="date" id="expDateInput">
+      </div>
+    </div>
+
+    <div class="date-row">
+      <div>
+        <div class="field-label">Batch No.</div>
+        <input type="text" id="batchInput" placeholder="e.g. B-2201">
+      </div>
+      <div>
+        <div class="field-label">UOM</div>
+        <input type="text" id="uomInput" placeholder="e.g. CTN, PCS, KG">
+      </div>
+    </div>
+
+    <div class="field-label">Remarks (optional)</div>
+    <input type="text" id="remarksInput" placeholder="Any notes for this scan" style="margin-bottom:14px;">
+
+    <div id="notFoundNote">❌ This item code was not found in the database. Add it via 📋 Items first, or check for a typo.</div>
+
+    <div class="row-btns">
+      <button class="btn btn-cancel" id="cancelResultBtn">Discard</button>
+      <button class="btn btn-save" id="saveBtn">Send for Approval</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-header">
+      <h2>Pending Transfers</h2>
+      <button id="pendingSearchBtn" class="link-btn" style="color:var(--muted);font-size:15px;">🔍</button>
+    </div>
+    <div id="pendingFilterBar" style="display:none;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+      <input type="text" id="pendingTextSearch" placeholder="Search by item code or name" style="flex:2;min-width:160px;">
+      <input type="date" id="pendingFromDate" style="flex:1;min-width:120px;">
+      <span style="color:var(--muted);font-size:12px;">to</span>
+      <input type="date" id="pendingToDate" style="flex:1;min-width:120px;">
+      <button id="pendingClearFilter" class="link-btn" style="color:var(--muted);">Clear</button>
+    </div>
+    <div id="pendingList"><div id="emptyPending">No pending transfers.</div></div>
+  </div>
+
+  <div class="card">
+    <div class="section-header">
+      <h2>Deletion Requests</h2>
+    </div>
+    <div id="deleteRequestsList"><div id="emptyDeleteRequests">No deletion requests.</div></div>
+  </div>
+
+  <div class="card">
+    <div class="section-header">
+      <h2>Edit Requests</h2>
+    </div>
+    <div id="editRequestsList"><div id="emptyEditRequests">No edit requests.</div></div>
+  </div>
+
+  <div class="card">
+    <div class="section-header">
+      <h2>Confirmed Movement Log</h2>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+        <button id="logSearchBtn" class="link-btn" style="color:var(--muted);font-size:15px;">🔍</button>
+        <button id="printHistoryBtn" style="background:none;border:none;color:var(--text);font-size:12px;cursor:pointer;font-weight:700;">🖨️ Print History</button>
+        <button id="exportBtn" style="background:none;border:none;color:var(--good);font-size:12px;cursor:pointer;font-weight:700;">⬇ Export to Excel</button>
+        <button id="resetBtn" class="link-btn">Clear all</button>
+      </div>
+    </div>
+    <div id="logFilterBar" style="display:none;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+      <input type="text" id="logTextSearch" placeholder="Search by item code or name" style="flex:2;min-width:160px;">
+      <input type="date" id="logFromDate" style="flex:1;min-width:120px;">
+      <span style="color:var(--muted);font-size:12px;">to</span>
+      <input type="date" id="logToDate" style="flex:1;min-width:120px;">
+      <button id="logClearFilter" class="link-btn" style="color:var(--muted);">Clear</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;">
+        <input type="checkbox" id="selectAllChk"> Select all
+      </label>
+      <button id="generateFormBtn" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-size:12px;font-weight:700;padding:8px 12px;border-radius:8px;cursor:pointer;">📄 Generate WH-PRO-1-F-12 Form</button>
+    </div>
+    <div id="logList"><div id="emptyLog">No confirmed transfers yet.</div></div>
+  </div>
+
+</div>
+
+<div id="backupsModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center;padding:16px;">
+  <div class="card" style="max-width:460px;width:100%;max-height:88vh;overflow:auto;">
+    <div class="field-label" style="font-size:13px;margin-bottom:12px;">Version History</div>
+    <div style="font-size:11.5px;color:var(--muted);margin-bottom:14px;line-height:1.4;">
+      A snapshot is saved automatically every time any data changes. Restoring replaces the current pending/confirmed/request data with the selected version for everyone — the current version is itself saved as a new snapshot first, so nothing is permanently lost.
+    </div>
+    <div id="backupsList"><div style="padding:14px 0;color:var(--muted);font-size:13px;">Loading versions…</div></div>
+    <button id="backupsCloseBtn" class="btn btn-cancel" style="width:100%;margin-top:14px;">Close</button>
+  </div>
+</div>
+
+<div id="itemDbModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center;padding:16px;">
+  <div class="card" style="max-width:480px;width:100%;max-height:88vh;overflow:auto;">
+    <div class="field-label" style="font-size:13px;margin-bottom:12px;">Item Database</div>
+
+    <div style="font-size:11.5px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
+      Adding an item here makes it scannable in both the Production and Warehouse apps.
+    </div>
+
+    <div class="field-label">Add New Item</div>
+    <input type="text" id="newItemCode" placeholder="Item Code (e.g. 31110099)" style="margin-bottom:8px;">
+    <input type="text" id="newItemName" placeholder="Item Name" style="margin-bottom:8px;">
+    <button id="addItemBtn" class="btn" style="width:100%;background:var(--good);color:#06251b;border:none;margin-bottom:14px;">+ Add Item</button>
+    <div id="itemDbError" style="color:var(--bad);font-size:12.5px;margin-bottom:10px;display:none;"></div>
+
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button id="exportItemsExcelBtn" style="flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--good);font-size:12px;font-weight:700;padding:9px;border-radius:8px;cursor:pointer;">⬇ Export to Excel</button>
+      <button id="exportItemsPdfBtn" style="flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-size:12px;font-weight:700;padding:9px;border-radius:8px;cursor:pointer;">🖨️ Export to PDF</button>
+    </div>
+    <label for="uploadItemsFile" style="display:block;text-align:center;background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-size:12px;font-weight:700;padding:9px;border-radius:8px;cursor:pointer;margin-bottom:6px;">📤 Upload Edited List (.xlsx)</label>
+    <input type="file" id="uploadItemsFile" accept=".xlsx,.xls" style="display:none;">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.4;">
+      Upload a spreadsheet with "Item Code" and "Item Name" columns — edited rows update existing items, new rows are added. Both apps pick up the changes.
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin:14px 0;">
+      <div style="flex:1;height:1px;background:var(--line);"></div>
+      <div style="color:var(--muted);font-size:11px;">ALL ITEMS</div>
+      <div style="flex:1;height:1px;background:var(--line);"></div>
+    </div>
+
+    <input type="text" id="itemDbSearch" placeholder="Search by code or name" style="margin-bottom:10px;">
+    <div id="itemDbCount" style="font-size:11.5px;color:var(--muted);margin-bottom:8px;"></div>
+    <div id="itemDbList"></div>
+
+    <button id="itemDbCloseBtn" class="btn btn-cancel" style="width:100%;margin-top:14px;">Close</button>
+  </div>
+</div>
+
+<div id="allMovementsModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center;padding:16px;">
+  <div class="card" style="max-width:480px;width:100%;max-height:88vh;overflow:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div class="field-label" style="margin-bottom:0;">Search All Movements</div>
+      <div style="display:flex;gap:4px;">
+        <button data-status="all" class="am-status-btn" style="font-size:10.5px;font-weight:700;padding:5px 9px;border-radius:14px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);cursor:pointer;">All</button>
+        <button data-status="confirmed" class="am-status-btn" style="font-size:10.5px;font-weight:700;padding:5px 9px;border-radius:14px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);cursor:pointer;">✅ Approved</button>
+        <button data-status="pending" class="am-status-btn" style="font-size:10.5px;font-weight:700;padding:5px 9px;border-radius:14px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);cursor:pointer;">⏳ Pending</button>
+      </div>
+    </div>
+
+    <div class="date-row">
+      <div>
+        <div class="field-label">From</div>
+        <input type="date" id="amFromDate">
+      </div>
+      <div>
+        <div class="field-label">To</div>
+        <input type="date" id="amToDate">
+      </div>
+    </div>
+    <input type="text" id="amTextSearch" placeholder="Search by item code or name" style="margin-bottom:14px;">
+
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button id="amPrintBtn" style="flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-size:12.5px;font-weight:700;padding:9px;border-radius:8px;cursor:pointer;">🖨️ Print as PDF</button>
+      <button id="amExcelBtn" style="flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--good);font-size:12.5px;font-weight:700;padding:9px;border-radius:8px;cursor:pointer;">⬇ Export to Excel</button>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button id="amClearBtn" class="link-btn" style="color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:6px 12px;">Clear</button>
+      <div style="flex:1;"></div>
+      <button id="amCloseBtn" class="btn btn-cancel" style="flex:none;padding:8px 16px;">Close</button>
+    </div>
+
+    <div id="amResultsSummary" style="font-size:11.5px;color:var(--muted);margin-bottom:8px;"></div>
+    <div id="amResultsList"></div>
+  </div>
+</div>
+
+<div id="settingsModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center;padding:16px;">
+  <div class="card" style="max-width:420px;width:100%;max-height:85vh;overflow:auto;">
+
+    <div class="field-label" style="font-size:13px;margin-bottom:12px;">My Account (<span id="myAccountName"></span>)</div>
+
+    <div class="field-label">Current Password</div>
+    <input type="password" id="setCurrentPass" style="margin-bottom:14px;">
+
+    <div class="field-label">New Display Name</div>
+    <input type="text" id="setNewName" style="margin-bottom:14px;">
+
+    <div class="field-label">New Username</div>
+    <input type="text" id="setNewUser" style="margin-bottom:14px;">
+
+    <div class="field-label">New Password (leave blank to keep current)</div>
+    <input type="password" id="setNewPass" style="margin-bottom:14px;">
+
+    <div class="field-label">Confirm New Password</div>
+    <input type="password" id="setConfirmPass" style="margin-bottom:6px;">
+
+    <div id="settingsError" style="color:var(--bad);font-size:12.5px;margin-bottom:10px;display:none;"></div>
+
+    <div class="row-btns">
+      <button class="btn btn-cancel" id="settingsCancelBtn">Cancel</button>
+      <button class="btn btn-save" id="settingsSaveBtn">Save My Changes</button>
+    </div>
+
+    <div id="teamAccountsSection" style="display:none;margin-top:22px;padding-top:16px;border-top:1px solid var(--line);">
+      <div class="field-label" style="font-size:13px;margin-bottom:10px;">Team Accounts (Production)</div>
+      <div id="teamAccountsList" style="margin-bottom:14px;"></div>
+
+      <div class="field-label" style="font-size:12px;margin-top:10px;">Add New Account</div>
+      <input type="text" id="addAcctName" placeholder="Display name (e.g. Ahmed)" style="margin-bottom:8px;">
+      <input type="text" id="addAcctUser" placeholder="Username" style="margin-bottom:8px;">
+      <input type="password" id="addAcctPass" placeholder="Password" style="margin-bottom:8px;">
+      <button id="addAcctBtn" class="btn" style="width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);">+ Add Account</button>
+    </div>
+
+  </div>
+</div>
+
+<div id="formModalOverlay">
+  <div class="card" style="max-width:420px;width:100%;max-height:85vh;overflow:auto;">
+    <div class="field-label" style="font-size:13px;margin-bottom:10px;">WH-PRO-1-F-12 Form Details</div>
+    <div style="font-size:11.5px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
+      Each day + shift combination in your selected scans will automatically print as its own separate paper.
+    </div>
+    <div class="date-row">
+      <div>
+        <div class="field-label">Date (fallback only)</div>
+        <input type="date" id="formDate">
+      </div>
+      <div>
+        <div class="field-label">Shift (fallback only)</div>
+        <input type="text" id="formShift" placeholder="Day/Evening/Night">
+      </div>
+    </div>
+    <div class="field-label">Serial No.</div>
+    <div style="font-size:12.5px;color:var(--muted);padding:10px;background:var(--panel-2);border-radius:8px;margin-bottom:14px;line-height:1.4;">
+      Assigned automatically when you print — one serial per day+shift on this form. The same day &amp; shift shares one number; a different day or shift always gets a new one.
+    </div>
+    <div class="field-label">Requesting Dept. / Issuing Dept.</div>
+    <div style="font-size:13.5px;color:var(--muted);margin-bottom:14px;padding:8px 10px;background:var(--panel-2);border-radius:8px;">
+      Set automatically for the Production app: Requesting = <b id="reqDeptPreview"></b>, Issuing = <b id="issueDeptPreview"></b>
+    </div>
+
+    <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:14px;font-size:12.5px;color:var(--text);cursor:pointer;">
+      <input type="checkbox" id="sumQuantitiesChk" style="margin-top:2px;">
+      <span>Combine (sum) quantities for the same item code on the same day &amp; shift — otherwise every delivery prints/exports as its own line</span>
+    </label>
+
+    <div class="row-btns">
+      <button class="btn btn-cancel" id="formCancelBtn">Cancel</button>
+      <button class="btn btn-save" id="formPrintBtn">Create &amp; Print/Save PDF</button>
+    </div>
+    <button id="formExcelBtn" class="btn" style="width:100%;margin-top:10px;background:var(--panel-2);border:1px solid var(--line);color:var(--good);">⬇ Export These Items to Excel</button>
+  </div>
+</div>
+
+<div id="printForm"></div>
+
+</div>
+
+<div id="statusMsg"></div>
+
+<script>
+const ITEMS = [{"code": "31110001", "name": "Tomato Ketchup Sachet 9gm (31-33%) Mama (9gm*1000)"}, {"code": "31110002", "name": "Tomato Ketchup Sachet 8gm (31-33%) Mama (8gm*1000)"}, {"code": "31110003", "name": "Tomato Ketchup Sachet 8gm (31-33%) Just (8gm*1000)"}, {"code": "31110004", "name": "Tomato Ketchup Sachet 8gm 28% Just (8gm*1000)"}, {"code": "31110005", "name": "Tomato Ketchup Sachet 9gm 28% Just (9gm*1000)"}, {"code": "31110006", "name": "Tomato Ketchup Sachet 8gm 28% Just by Mama (8gm*1000)"}, {"code": "31110007", "name": "Tomato Ketchup Sachet 8gm 28% Just by Mama (8gm*1000) 4"}, {"code": "31120001", "name": "Tomato Ketchup Jerry Can 29% (5Kg*4) Mama Jerry Can"}, {"code": "31120002", "name": "Tomato Ketchup Jerry Can Mama 25% (5Kg*4)"}, {"code": "31120003", "name": "Tomato Ketchup Jerry Can 25% Just by Mama (6 x 3KG)"}, {"code": "31120004", "name": "Tomato Ketchup Jerry Can 25% Just by Mama (4 x 5KG)"}, {"code": "31130001", "name": "Tomato Ketchup 1Kg Mama (1Kg*12)"}, {"code": "31210002", "name": "Mayonnaise 15% - Mama ( 1000*9G)"}, {"code": "31210003", "name": "Mayonnaise 9gm Tala 15% 250*4 Box"}, {"code": "31210004", "name": "Mayonnaise Just by Mama 15% Sachet 9gm"}, {"code": "31220001", "name": "Mayonnaise 55% USG (3.78Ltr*4) Mama"}, {"code": "31220002", "name": "Mayonnaise 78% USG (3.78Ltr*4) Mama"}, {"code": "31220003", "name": "Mayonnaise 65% USG Mama (3.78Ltr*4)"}, {"code": "31220005", "name": "Mayonnaise 15% USG Mama (3.78Ltr*4)"}, {"code": "31220006", "name": "Mayonnaise 15% Haley (12x 946 ML) PET"}, {"code": "31220007", "name": "Mayonnaise Heavy Duty 50% USG Just by Mama (3.7Ltr*4)"}, {"code": "31220008", "name": "Mayonnaise 82% USG Just by Mama (3.78Ltr*4)"}, {"code": "31240001", "name": "Mayonnaise 15% MAMA (12x 946ML) Glass"}, {"code": "31240002", "name": "Mayonnaise 15% Mama (12 x 946ML) PET"}, {"code": "31240003", "name": "Mayonnaise 15% BAYADER (12 x 900ML) PET"}, {"code": "31240004", "name": "Mayonnaise Garlic Haley 450 ML SQZ (450*12)"}, {"code": "31240005", "name": "Mayonnaise Chili Haley 450 ML SQZ"}, {"code": "31240006", "name": "Mayonnaise Classic Haley 450 ML SQZ"}, {"code": "31240030", "name": "Tomato Ketchup Just by Mama 340gm SQZ (340*12)"}, {"code": "31240031", "name": "Mayonnaise Just by Mama 300 ML SQZ (300*12)"}, {"code": "31240032", "name": "Garlic Sauce Just by Mama 300 ML SQZ (300*12)"}, {"code": "31240033", "name": "Creamy Ranch Sauce Just by Mama 300 ML SQZ (300*12)"}, {"code": "31240034", "name": "BBQ Sauce Just by Mama 300 ML SQZ (300*12)"}, {"code": "31240035", "name": "Mayochup Sauce Just by Mama 300 ML SQZ (300*12)"}, {"code": "31240036", "name": "1000 Island Sauce Just by Mama 300 ML SQZ (300*12)"}, {"code": "31240037", "name": "Smoky Sauce Just by Mama 300 ML SQZ (300*12)"}, {"code": "31240038", "name": "French Dressing Sauce Just by Mama 300 ML SQZ (300*12)"}, {"code": "31320002", "name": "Hot Sauce Sachet 9gm Popular 12 Brix (9gm*1000) Mama"}, {"code": "31320003", "name": "Hot Sauce Just by Mama Sachet 9gm Popular 12 Brix"}, {"code": "31330001", "name": "Ranch Sauce 1Kg (1Kg*12) Mama"}, {"code": "31330002", "name": "1000 Island Dressing 1Kg (1Kg *12) Mama"}, {"code": "31330003", "name": "Yellow Tortilla Sauce 1Kg (1Kg*12) Mama"}, {"code": "31330004", "name": "Grill (BBQ Mayo) Sauce 1Kg  (1Kg*12) Mama"}, {"code": "31330005", "name": "Double Cheese Sauce 1Kg  (1Kg*12) Mama"}, {"code": "31330007", "name": "Alfredo Sauce 1Kg (1Kg*12) Mama"}, {"code": "31330009", "name": "Marinara Sauce 1Kg (1Kg*12) Mama"}, {"code": "31330012", "name": "Peri Peri Sauce 1Kg (1Kg*12) Mama"}, {"code": "31330013", "name": "BBQ Sauce 1Kg Mama (1Kg*12)"}, {"code": "31330014", "name": "Cocktail sauce (Mayochup) 1Kg Mama (1Kg*12)"}, {"code": "31330015", "name": "Dynamite Sauce 1Kg Mama (1Kg*12)"}, {"code": "31330017", "name": "Garlic Sauce 1Kg Regular Mama (1Kg*12)"}, {"code": "31330019", "name": "Chipotle Sauce 1Kg Mama (1Kg*12)"}, {"code": "31330023", "name": "Maple Sriracha Sauce 1Kg  (1Kg*12) Mama"}, {"code": "31330024", "name": "Garlic Parmesan Sauce 1Kg (1Kg*12) Mama"}, {"code": "31330028", "name": "Creamy Ranch Sauce 1Kg Mama (1Kg*12)"}, {"code": "31330031", "name": "Classic Burger Sauce - Mama (1KG*12)"}, {"code": "31330032", "name": "Red Daqoous Sauce Just by Mama (1kg*12)"}, {"code": "31330033", "name": "Green Daqoous Sauce Just by Mama (1kg*12)"}, {"code": "31330034", "name": "Korean Gochu Sauce 1kg Pouch - Just by Mama Logo (1kg*12)"}, {"code": "31340002", "name": "Cheddar Cheese Sauce USG (3.78Ltr*4) Mama"}, {"code": "31340003", "name": "Caesar Dressing USG (3.78Ltr* 4) Mama"}, {"code": "31340008", "name": "Chipotle Sauce USG Mama (3.78Ltr*4)"}, {"code": "31340010", "name": "BBQ Sauce USG Mama (3.78Ltr*4)"}, {"code": "31340013", "name": "Creamy Ranch Sauce USG (3.78Ltr*4) Mama"}, {"code": "31340016", "name": "Honey Mustard Sauce USG Mama (3.78Ltr*4)"}, {"code": "31340017", "name": "Honey BBQ Sauce USG 4*3.78 Ltr"}, {"code": "31340018", "name": "Mayochup USG MAMA (3.78Ltr*4)"}, {"code": "31340019", "name": "Mustard Sauce USG MAMA (3.78Ltr*4)"}, {"code": "31340020", "name": "French Dressing Sauce USG Just By MAMA (3.78Ltr*4)"}, {"code": "31340021", "name": "Italian Dressing Sauce USG Just By MAMA (3.78Ltr*4)"}, {"code": "31340022", "name": "BBQ Sauce USG Just by Mama(3.78Ltr*4)"}, {"code": "31340023", "name": "Ranch Sauce (Ambient) USG Just by Mama (3.7Ltr*4)"}, {"code": "31340024", "name": "Chipotle Sauce(Ambient) USG Just by Mama (3.7Ltr*4)"}, {"code": "31350001", "name": "Hot Sauce Jerry Can Popular 12 Brix (4.5Kg*4) Mama"}, {"code": "31350004", "name": "Tomato Ketchup 29% Mama (6 x 3KG)"}, {"code": "31350005", "name": "Hot Sauce Jerry Can 2.9 Kg Just by Mama Popular 12 Brix (2.9*6)"}, {"code": "31350006", "name": "Hot Sauce Jerry Can 4.5 Kg Just by Mama Popular 12 Brix (4*4.5 kg)"}, {"code": "31360002", "name": "BUKHARI SAUCE - HAKAKA (1*20KG) PAIL"}, {"code": "31370001", "name": "BBQ Sauce 40gm Dippot Just by Mama (200 PCS)"}, {"code": "31370002", "name": "Caesar Sauce 40 gm Dippot Just by Mama (200 PCS)"}, {"code": "31370003", "name": "Chipotle Sauce 40 gm Dippot Just by Mama (200 PCS)"}, {"code": "31370004", "name": "Dynamite Sauce 40gm Dippot Just by Mama (200 PCS)"}, {"code": "31370005", "name": "Garlic Sauce 40gm Dippot Just by Mama (200 PCS)"}, {"code": "31370006", "name": "Creamy Ranch Sauce 40gm Dippot Just by Mama (200 PCS)"}, {"code": "32110003", "name": "Tomato Ketchup 32% Sachet 9gm TZ (9gm*1000)"}, {"code": "32110004", "name": "Tomato Ketchup Sachet 9gm AW (9gm*1000)"}, {"code": "32110005", "name": "Tomato Ketchup Sachet 9g B1 (9gm*1000)"}, {"code": "32110008", "name": "Tomato Ketchup Sachet 9gm (CL) (9gm*1000)"}, {"code": "32110010", "name": "Tomato Ketchup Sachet 9gm AR (9gm*1000)"}, {"code": "32110011", "name": "Tomato Ketchup Sachet 9gm HC (9gm*1000)"}, {"code": "32110012", "name": "Tomato Ketchup Sachet 9gm KK (9gm*1000)"}, {"code": "32110013", "name": "Tomato Ketchup Sachet 9gm SC (9gm*1000)"}, {"code": "32110014", "name": "Tomato Ketchup Sachet 9gm SK (9gm*1000)"}, {"code": "32110015", "name": "Tomato Ketchup Sachet 9gm RB (9gm*1000)"}, {"code": "32110016", "name": "Tomato Ketchup Sachet 9gm MT 32% (9gm*1000)"}, {"code": "32110017", "name": "Tomato Ketchup Sachet 9gm (Burgerrizer) (9gm*1000)"}, {"code": "32110018", "name": "Tomato Ketchup Sachet 9gm FB (9gm*1000)"}, {"code": "32110019", "name": "Tomato Ketchup Sachet 9gm Kufa (9gm*1000)"}, {"code": "32110024", "name": "Tomato Ketchup| Sachet 9gm Shawez (9gm*1000)"}, {"code": "32110025", "name": "Tomato Ketchup Sachet 25gm GC (25gm*300)"}, {"code": "32110026", "name": "Tomato Ketchup Sachet 9gm MB (9gm*1000)"}, {"code": "32110027", "name": "Tomato Ketchup Sachet 9gm SH (9gm*1000)"}, {"code": "32110028", "name": "Tomato Ketchup Sachet 9gm SJ (9gm*1000)"}, {"code": "32110030", "name": "Tomato Ketchup Sachet 9gm KAW (9gm*1000)"}, {"code": "32110031", "name": "Tomato Ketchup 32% Sachet 9gm TODAY (9gm*1000)"}, {"code": "32110032", "name": "Tomato Ketchup 32% Sachet 9gm MAZA (9gm*1000)"}, {"code": "32110033", "name": "Tomato Ketchup 32% Sachet 9gm CATCH ME (9gm*1000) CATCH ME"}, {"code": "32110035", "name": "Tomato Ketchup Sachet 9gm (31-33%) Orchid (9gm*1000)"}, {"code": "32110036", "name": "Tomato Ketchup Sachet 9gm (31-33%) Mira (9gm*1000)"}, {"code": "32110037", "name": "Tomato Ketchup 32% Sachet 9gm - Sultan Burger (9gm*1000)"}, {"code": "32110038", "name": "Tomato Ketchup Sachet 9gm (31-33%) Ktaykit (9gm*1000)"}, {"code": "32110039", "name": "Tomato Ketchup Sachet 9gm (31-33%) BAYADER (9gm*1000)"}, {"code": "32110041", "name": "Tomato Ketchup Sachet 9gm (31-33%) Rami (9gm*1000)"}, {"code": "32110042", "name": "Tomato Ketchup Sachet 9gm (31-33%) Pizza Rita (9gm*1000)"}, {"code": "32110043", "name": "Tomato Ketchup Sachet 9gm -HUMBURGINI (9gm*1000)"}, {"code": "32110044", "name": "Tomato Ketchup Sachet 9gm - Al Tazaj (9gm*1000)"}, {"code": "32110045", "name": "Tomato Ketchup Sachet 9gm - KUDU (9gm*1000)"}, {"code": "32110046", "name": "Tomato Ketchup Sachet 8gm Shawarmer (8gm*1250) 28% TSS"}, {"code": "32110047", "name": "Tomato Ketchup Sachet 9gm - Al Farooj (9gm*1000)"}, {"code": "32110048", "name": "Tomato Ketchup 28% Sachet 9gm - Foil (9gm*1000)"}, {"code": "32110049", "name": "Tomato Ketchup Sachet 8gm (31-33%) SC (8gm*1000)"}, {"code": "32110050", "name": "Tomato Ketchup Sachet 9gm - PLAN B (9gm*1000)"}, {"code": "32110051", "name": "Tomato Ketchup Sachet 8gm (31-33%) Fazco (8gm*1000)"}, {"code": "32110052", "name": "Tomato Ketchup Sachet 9gm (31-33%) Burger Hunch (9gm*1000)"}, {"code": "32110053", "name": "Tomato Ketchup Sachet 9gm Jan Burger"}, {"code": "32110054", "name": "Tomato Ketchup Sachet 8gm Chicket"}, {"code": "32110055", "name": "Tomato Ketchup Sachet 8gm Al Rajhi (8gm*1000)"}, {"code": "32110057", "name": "Tomato Ketchup 9gm Tala Brix 28% 250*4 Box"}, {"code": "32110058", "name": "Tomato Ketchup Sachet 9gm MT 28% (9gm*1000)"}, {"code": "32110059", "name": "Tomato Ketchup Sachet Al Barakah (31-33%) (8gm*1000)"}, {"code": "32110060", "name": "Tomato Ketchup Sachet 8gm MT 28% (8gm*1000)"}, {"code": "32110061", "name": "Tomato Ketchup Sachet 8gm 28% Midan Al Sham(8gm*1000)"}, {"code": "32110062", "name": "Tomato Ketchup Sachet 8gm 28% Al Qandil Al Zahabi (8gm*1000)"}, {"code": "32110063", "name": "Tomato Ketchup Sachet 9gm 28%  Wadi Al Nahil (9gm*1000)"}, {"code": "32110064", "name": "Tomato Ketchup Sachet 9gm 33%  SIGN(9gm*1000)"}, {"code": "32110065", "name": "Tomato Ketchup Sachet 9gm 28%  Adma (9gm*1000)"}, {"code": "32110066", "name": "Tomato Ketchup 28% Sachet 9gm - Sultan Burger (9gm*1000)"}, {"code": "32110067", "name": "Tomato Ketchup Sachet 8gm SH (8gm*1000)"}, {"code": "32110068", "name": "Tomato Ketchup 28% Sachet 9gm - Max Food (9gm*1000)"}, {"code": "32110069", "name": "Tomato Ketchup Sachet 9gm 33% Inbox (9gm*1000)"}, {"code": "32110070", "name": "Tomato Ketchup Sachet 9gm Almazak Elzaki 28% (9gm*1000)"}, {"code": "32110071", "name": "Tomato Ketchup Sachet 18gm Shawarmer 28% (18gm*500)"}, {"code": "32110072", "name": "Tomato Ketchup Sachet 9gm 28% Brix First Taste (9gm*1000)"}, {"code": "32110073", "name": "Tomato Ketchup Sachet 8gm 28% Brix Nahal Al Wadi (Mamia Logo) (8gm*1000)"}, {"code": "32110074", "name": "Tomato Ketchup Sachet 8gm 30% Americana (8gm*1250)"}, {"code": "32110075", "name": "Tomato Ketchup Sachet 9g 28% Al Burger (9gm*1000) \u00a0"}, {"code": "32110076", "name": "Tomato Ketchup Sachet 8g 28% Dana Logo (8g*1000)"}, {"code": "32110077", "name": "Tomato Ketchup Sachet 8g 28% TSS Mawarid Logo (8g*1000)"}, {"code": "32110078", "name": "Tomato Ketchup Sachet 8g 28% Sachet - Popeyes (8gm*1250)"}, {"code": "32120002", "name": "Tomato Ketchup Jerry Can MT 5Kg*4"}, {"code": "32120003", "name": "Tomato Ketchup Jerry Can TODAY (5kg*4)"}, {"code": "32120004", "name": "Tomato Ketchup Jerry Can 29% Fazco (5Kg*4)"}, {"code": "32120005", "name": "Tomato Ketchup Jerry Can 29% Bayader (5Kg*4)"}, {"code": "32120006", "name": "Tomato Ketchup 25% Jerry Can 3 kg Green Garden"}, {"code": "32120007", "name": "Tomato Ketchup Haley Jerry Can 3 kg"}, {"code": "32120008", "name": "Tomato Ketchup Jerry Can 25% Fazco (5Kg*4)"}, {"code": "32120009", "name": "Tomato Ketchup Jerry Can 25% Pran (5Kg*4)"}, {"code": "32120010", "name": "Tomato Ketchup Jerry Can 25% Miza (3Kg*6)"}, {"code": "32120011", "name": "Tomato Ketchup Jerry Can 25% Green Valley (5Kg*4)"}, {"code": "32120012", "name": "Tomato Ketchup Jerry Can 25% Sunbulah (5Kg*4)"}, {"code": "32130002", "name": "Tomato Ketchup 1Kg KU (1Kg*12)"}, {"code": "32140001", "name": "Tomato Ketchup Haley 510gm SQZ"}, {"code": "32140002", "name": "Tomato Ketchup DARI (12*340 gm ) SQZ"}, {"code": "32140003", "name": "Tomato Ketchup Hot DARI (12*340 gm) SQZ"}, {"code": "32140004", "name": "Tomato Ketchup Legador 30% Brix (12x510gm) SQZ"}, {"code": "32210005", "name": "Mayonnaise 40% Sachet 10gm Kudu (10gm*1000)"}, {"code": "32210007", "name": "Mayonnaise 15% - Peep( 1000*9G)"}, {"code": "32210008", "name": "Mayonnaise 9g Sachet *1000Pcs\u00a0(Al Burger Logo)"}, {"code": "32210009", "name": "Mayonnaise 9g 15% Sachet Dana Logo (9g*1000)"}, {"code": "32220004", "name": "Mayonnaise 15% USG AT (3.78Ltr*4)"}, {"code": "32220005", "name": "Mayonnaise 40% USG Mama (3.78Ltr*4)"}, {"code": "32220006", "name": "Mayonnaise 78% USG AT (3.78Ltr*4)"}, {"code": "32220007", "name": "Mayonnaise 15% USG Today (3.7Ltr*4)"}, {"code": "32220008", "name": "Mayonnaise 55% USG ADMA (3.78Ltr*4)"}, {"code": "32220010", "name": "Mayonnaise 15% USG BAYADER (3.78Ltr*4)"}, {"code": "32220011", "name": "Mayonnaise 78% USG ADMA (3.78Ltr*4)"}, {"code": "32220012", "name": "Mayonnaise 78% USG OYANO (3.78Ltr*4)"}, {"code": "32220013", "name": "Mayonnaise 15% USG ALMAWAED (3.78Ltr*4)"}, {"code": "32220014", "name": "Mayonnaise 65% USG KU (3.78Ltr*4)"}, {"code": "32220015", "name": "Mayonnaise 15% USG FAZCO (3.78Ltr*4)"}, {"code": "32220016", "name": "Mayonnaise 15% USG Green Valley (3.78Ltr*4)"}, {"code": "32220017", "name": "Mayonnaise 15% USG (3.7L*4) Dana Logo"}, {"code": "32220018", "name": "Hardee's\u00a0Mayonnaise 3.7L USG (4* 3.7 L)"}, {"code": "32220019", "name": "Mayonnaise Mamia 15% 3.7L USG - (4* 3.7L)"}, {"code": "32220020", "name": "Mayonnaise Sunbulah 15% 3.7L USG - (4* 3.7L)"}, {"code": "32240001", "name": "Mayonnaise 15% FAZCO (12x 946ML) Glass"}, {"code": "32240002", "name": "Mayonnaise 25% Green Garden (12x 900ML) PET"}, {"code": "32240003", "name": "Mayonnaise 25% - Green Garden(12*450ml) SQZ"}, {"code": "32240004", "name": "Garlic Sauce - Green Garden(12*450ml) SQZ"}, {"code": "32240005", "name": "Ranch Sauce-Green Garden(12*450ml) SQZ"}, {"code": "32240006", "name": "1000 ISLAND DRESSING - Green Garden(12*450ml) SQZ"}, {"code": "32240007", "name": "Spicy Mayonnaise - Green Garden(12*450ml) SQZ"}, {"code": "32240008", "name": "French Dressing - Green Garden(12*450ml) SQZ"}, {"code": "32240009", "name": "Mayonnaise DARI  (12*300) SQZ"}, {"code": "32240010", "name": "Mayonnaise 15% Peep (12x 946ML) Glass"}, {"code": "32240011", "name": "Mayonnaise DARI LIGHT (12*300 ml) SQZ"}, {"code": "32240012", "name": "Mayonnaise Treva 35% (300ml*12) SQZ"}, {"code": "32240013", "name": "BBQ Sauce Panda 450 ML SQZ (450ML*12)"}, {"code": "32240014", "name": "Mustard Panda 450 ML SQZ (450*12)"}, {"code": "32240015", "name": "French Dressing Panda 450 ML SQZ (450*12)"}, {"code": "32240016", "name": "1000 Island Panda 450 ML SQZ (450*12)"}, {"code": "32240017", "name": "Garlic Mayonnaise Treva (300ml*12) SQZ"}, {"code": "32240018", "name": "Chili Mayonnaise Treva (300ml*12) SQZ"}, {"code": "32240019", "name": "Mayochup Treva (300ml*12) SQZ"}, {"code": "32240020", "name": "Mayonnaise Light Al Balad 15% (450ml*12) SQZ"}, {"code": "32240021", "name": "Mayonnaise Original Al Balad 35% (450ml*12) SQZ"}, {"code": "32240022", "name": "Tomato Ketchup Al Balad Brix 28% (510gm*12) SQZ"}, {"code": "32240023", "name": "Mayonnaise Light Al Balad 15% (946ml*12) PET"}, {"code": "32240024", "name": "Mayonnaise Original Al Balad 35% (946ml*12) PET"}, {"code": "32240025", "name": "Mayonnaise Creamy Goody (12x 946 ML) PET"}, {"code": "32240026", "name": "Mayonnaise Legador 15% (12x300ml) SQZ"}, {"code": "32240027", "name": "Mayonnaise Legador 15% (12x450ml SQZ)"}, {"code": "32240028", "name": "Mayonnaise Light 15% IKK 450ml SQZ (450*12)"}, {"code": "32240029", "name": "Mayonnaise Original 65% IKK 450ml SQZ (450*12)"}, {"code": "32240030", "name": "Mayonnaise Light 15% IKK 946ml Jar (946*12) PET"}, {"code": "32240031", "name": "Mayonnaise Original 65% IKK 946ml Jar (946*12) PET"}, {"code": "32240032", "name": "Tomato Ketchup IKK 32% Brix 340g (340*12) SQZ"}, {"code": "32240033", "name": "Tomato Ketchup IKK 32% Brix 510g (510*12) SQZ"}, {"code": "32240034", "name": "Mayonnaise 15% PET Jar (946ml*12) Dana Logo"}, {"code": "32240035", "name": "Mayonnaise 15% Treva Logo 946ml PET Jar (946ml*12)"}, {"code": "32310001", "name": "Biryani Mix Spicy (300gm*12) Mayar"}, {"code": "32310002", "name": "Kabsa Mix (300gm*12) Mayar"}, {"code": "32310003", "name": "Biryani Mix Mild (300gm*12) Mayar"}, {"code": "32310004", "name": "Bukhari Mix 300gm (300gm*12) Mayar"}, {"code": "32310015", "name": "Mandi sauce 300gm (300gm*12) Mayar"}, {"code": "32310020", "name": "Marinara Sauce Goody 350gm*12"}, {"code": "32310021", "name": "Koshna Sauce Goody 350gm*12"}, {"code": "32310022", "name": "Arabbiata Sauce Goody 300gm*12"}, {"code": "32320004", "name": "Cocktail Sauce Sachet 18gm TZ (18gm*500)"}, {"code": "32320008", "name": "Garlic Sauce Sachet 18gm GC (18gm*500)"}, {"code": "32320009", "name": "Hot Sauce Sachet 9gm (GF) (9gm*1000)"}, {"code": "32320010", "name": "Spicy Garlic Sauce Sachet 18gm GC (18gm*500)"}, {"code": "32320012", "name": "Hot Sauce Sachet 9gm Romansiah (9gm*1000)"}, {"code": "32320013", "name": "Hot Sauce Sachet 9gm AZ (9gm*1000)"}, {"code": "32320014", "name": "Cocktail Sauce Sachet 25gm GC (25gm*300)"}, {"code": "32320015", "name": "Garlic Sauce Sachet 25gm GC (25gm*300)"}, {"code": "32320016", "name": "1000 Island Dressings 40gm AT (40gm*72)"}, {"code": "32320017", "name": "Hot Sauce Sachet 18gm Qalat (18gm*500)"}, {"code": "32320018", "name": "Biryani Mix Mild Sachet (100gm*36) Mayar"}, {"code": "32320019", "name": "Biryani Mix Spicy Sachet (100gm*36) Mayar"}, {"code": "32320020", "name": "Kabsa Mix Sachet (100gm*36) Mayar"}, {"code": "32320021", "name": "Hot Sauce Sachet 9gm SJ (9gm*1000)"}, {"code": "32320022", "name": "Chili Salsa 40gm GC (250*40gm)"}, {"code": "32320023", "name": "Hot Sauce Sachet 9gm GC (9gm*1000) GC"}, {"code": "32320024", "name": "Hot Sauce Sachet 9gm  TODAY (9gm*1000)"}, {"code": "32320026", "name": "Hot Sauce Sachet 9gm ALSADDA (9gm*1000)"}, {"code": "32320027", "name": "Bukhari Mix Sachet (100gm*36) Mayar"}, {"code": "32320028", "name": "Hot Sauce Sachet 9gm Kudu (9gm*1000)"}, {"code": "32320029", "name": "BBQ Sauce 18G SEARA (500*18g)"}, {"code": "32320030", "name": "Mandi Sauce Sachet (100gm*36) Mayar"}, {"code": "32320031", "name": "Hot Sauce Sachet 9gm Midan Al Sham (9gm*1000)"}, {"code": "32320032", "name": "Hot Sauce Sachet 9gm Al Qandil Al Zahabi (9gm*1000)"}, {"code": "32320033", "name": "Hot Sauce Sachet 9gm Dawar Al Saddah (9gm*1000)"}, {"code": "32320034", "name": "Butter Chicken Sachet (150gm*36) Al Marai"}, {"code": "32320035", "name": "Teriyaki Sauce Sachet (150gm*36) Al Marai"}, {"code": "32320036", "name": "BBQ Sachet (150gm*36) Al Marai"}, {"code": "32320037", "name": "Hot Sauce Sachet 9gm Hashy AL Gomla  (9gm*1000)"}, {"code": "32320038", "name": "Garlic Sauce Sachet 18gm Shawarmer (18gm*500)"}, {"code": "32320039", "name": "Hot Sauce Sachet 9gm Fazco (9gm*1000)"}, {"code": "32320040", "name": "Mayonnaise 9 gm Sachet 15% Fazco (1000*9G)"}, {"code": "32320090", "name": "Dates Muhalla Sachet Cardamom (20gm*210)"}, {"code": "32320091", "name": "Dates Muhalla Sachet Cinnabon Butter (20gm*210)"}, {"code": "32320092", "name": "Dates Muhalla Sachet Hazelnut (20gm*210)"}, {"code": "32320093", "name": "Dates Muhalla Sachet White Chocolate (20gm*210)"}, {"code": "32320094", "name": "Shira Syrup 8g Sachet - Coffee Address (8gm*1000)"}, {"code": "32320095", "name": "Hot Sauce Sachet 10g Rana (10gm*1000)"}, {"code": "32330016", "name": "Honey BBQ Sauce 1Kg Burgerizzer (1Kg*12)"}, {"code": "32330019", "name": "Ranch Sauce 1Kg SW (1Kg*12)"}, {"code": "32330033", "name": "Peri Peri Sauce 1Kg  Mawarid (1Kg*12) Mawarid"}, {"code": "32330034", "name": "BBQ Sauce 1Kg Mawarid (1Kg*12)"}, {"code": "32330035", "name": "Pizza Sauce 1kg Mawarid (1Kg*12)"}, {"code": "32330036", "name": "BBQ Sauce 1Kg KU (1Kg*12)"}, {"code": "32330038", "name": "1000 Island Dressings Ku (12 x 1kg)"}, {"code": "32330039", "name": "Italian Dressing 1Kg Ku (1Kg*12)"}, {"code": "32330040", "name": "Red Tortilla Sauce 1Kg KU (1Kg*12)"}, {"code": "32330041", "name": "Harissa Sauce 1Kg Ku (1Kg*12)"}, {"code": "32330042", "name": "Yellow Tortilla Sauce 1Kg KU (1Kg*12)"}, {"code": "32330043", "name": "Magic Onion Sauce - Ku (12 x 1Kg) KU"}, {"code": "32330045", "name": "Garlic Sauce 1Kg Mawarid (1Kg*12)"}, {"code": "32330047", "name": "Garlic Parmesan Sauce 1Kg KU (1Kg*12)"}, {"code": "32330048", "name": "Pepper Mayonnaise - Mama (12 x 1Kg)"}, {"code": "32330049", "name": "White Kushnah - WAZNAH 3.6Kg  (36*100gm)"}, {"code": "32330050", "name": "Brown Kushnah - WAZNAH 3.6Kg (36*100gm)"}, {"code": "32330051", "name": "Red Kushnah-Paste WAZNAH 3.6Kg (100g*36)"}, {"code": "32330054", "name": "Khafeef sauce 1Kg (1Kg*12)"}, {"code": "32330055", "name": "Honey Sriracha sauce - Ku (12 x 1Kg)"}, {"code": "32330056", "name": "Buffalo Sauce 1kg\u00a0 Just by Mama (1kg* 12)"}, {"code": "32330057", "name": "Pizza Sauce 1kg (1Kg*12)"}, {"code": "32330058", "name": "Caesar Dressings - Ku (12 x 1KG)"}, {"code": "32330059", "name": "Alfredo Sauce 1Kg LC (1Kg*12)"}, {"code": "32330060", "name": "Marinara Sauce 1KG LC (1Kg*12)"}, {"code": "32330064", "name": "Cilantro Sauce 25% (1 kg*12)"}, {"code": "32330065", "name": "Smoky Sauce 1kg (1Kg*12)"}, {"code": "32330066", "name": "Pepper Mayonnaise - KU(12 x 1Kg)"}, {"code": "32330067", "name": "Burrito Sauce 1 kg (1kg*12)"}, {"code": "32330068", "name": "Island Sauce 1kg Party Box (1Kg*12)"}, {"code": "32330069", "name": "Pizza Sauce 1kg Party Box (1Kg*12)"}, {"code": "32330070", "name": "Iskander Sauce 1kg Party Box (1Kg*12)"}, {"code": "32330071", "name": "Pepper Sauce 1kg Party Box (1Kg*12)"}, {"code": "32330072", "name": "Musakhan Sauce 1kg Party Box (1Kg*12)"}, {"code": "32330073", "name": "Zinger Sauce 1kg Party Box (1Kg*12)"}, {"code": "32330074", "name": "Masala Sauce 1kg Party Box (1Kg*12)"}, {"code": "32330075", "name": "Tommeya Sauce 1kg Party Box (1Kg*12)"}, {"code": "32330076", "name": "Dynamite Sauce 1Kg (1Kg*12) Humburgini"}, {"code": "32330077", "name": "Premium Sauce 1Kg (1Kg*12) Humburgini"}, {"code": "32330078", "name": "Sweet Smokey Sauce 1Kg (1Kg*12) Humburgini"}, {"code": "32330079", "name": "Pepper Mayo Sauce 1Kg (1Kg*12) Humburgini"}, {"code": "32330080", "name": "Maple Sauce 1Kg (1Kg*12) Humburgini"}, {"code": "32330081", "name": "Remarkable Sauce 1Kg (1Kg*12) Humburgini"}, {"code": "32330082", "name": "Strawberries Sauce 1Kg Ku (1Kg*12)"}, {"code": "32330083", "name": "Honey garlic Sauce 1kg (1Kg*12)"}, {"code": "32330088", "name": "Dressing Sauce 1Kg KU (1Kg*12)"}, {"code": "32330089", "name": "Hollandaise Sauce 1kg Ku (1Kg*12)"}, {"code": "32330090", "name": "Garlic Sauce KFC (1Kg*12)"}, {"code": "32330091", "name": "Champion Sauce - (12 x 1Kg)"}, {"code": "32330092", "name": "Special Sauce 1kg Just by Mama (1kg* 12)"}, {"code": "32330200", "name": "Coleslaw Dressing KFC 4KG (4Kg*3)"}, {"code": "32330201", "name": "Pizza Sauce Almarai Bakery (Lusine) 4kg*3"}, {"code": "32330202", "name": "Arabiata\u00a0\u00a0Sauce 1kg (1kg*12)"}, {"code": "32330206", "name": "Sandwich Sauce\u00a01kg Al Burger (1kg* 12)"}, {"code": "32330207", "name": "Texas Sauce\u00a01kg Al Burger (1kg* 12)"}, {"code": "32330208", "name": "Dijon Sauce\u00a01kg Al Burger (1kg* 12)"}, {"code": "32330209", "name": "Chili Mayo 1kg Just by Mama (1kg* 12)"}, {"code": "32330210", "name": "Mustard Sauce 1kg Just by Mama (1kg* 12)"}, {"code": "32330211", "name": "Korean BBQ Sauce\u00a01kg Just by Mama (1kg* 12)"}, {"code": "32330214", "name": "Hardee's\u00a0Mustard Sauce 1Kg Pouch (12*1 kg)"}, {"code": "32330215", "name": "Arby's Red Ranch Sauce 1Kg Pouch (12*1kg)"}, {"code": "32330216", "name": "Arby\u2019s Spicy Mayo 1Kg pouch - (12*1kg)"}, {"code": "32330218", "name": "Tikka Sauce .5 kg Pouch Al Tazaj Logo (.5kg*24)"}, {"code": "32330219", "name": "Chipotle Adobo Sauce 1kg Pouch (12*1kg)"}, {"code": "32330220", "name": "BBQ Sauce 1kg Pouch - Steak House (1kg*12)"}, {"code": "32330221", "name": "Fermented Honey Chili Sauce 1kg Pouch - KFC (1kg*12)"}, {"code": "32330222", "name": "Creamy Mabooj Sauce 1kg Pouch KFC Logo (1kg*12)"}, {"code": "32330223", "name": "Gold Star Sauce 1kg Hardee's (1kg*12)"}, {"code": "32340007", "name": "Ranch Sauce USG (Mama) (3.78Ltr*4)"}, {"code": "32340008", "name": "Ranch Sauce USG MTY (3.78Ltr*4)"}, {"code": "32340010", "name": "BBQ Sauce USG MTY (3.78Ltr*4)"}, {"code": "32340012", "name": "Honey Mustard Sauce USG AT (3.78Ltr*4)"}, {"code": "32340014", "name": "Garlic Sauce USG SK (3.78Ltr*4)"}, {"code": "32340020", "name": "Mayochup USG AT (3.78Ltr*4)"}, {"code": "32340030", "name": "Creamy Ranch Sauce USG  ADMA (3.78Ltr*4)"}, {"code": "32340032", "name": "Cheese Magic Onion Sauce USG SK (3.78Ltr*4)"}, {"code": "32340033", "name": "Yellow Tortilla Kudu USG (3.78Ltr*4)"}, {"code": "32340034", "name": "Ranch Dressing USG (3.7L*4) Dana Logo"}, {"code": "32340035", "name": "Hardee's\u00a0Ranch Sauce 3.7L USG (4* 3.7 L)"}, {"code": "32340036", "name": "Hardee's\u00a0Black Pepper Sauce 3.7L USG (4* 3.7 L)"}, {"code": "32340037", "name": "Hardee's\u00a0Special Sauce 3.7L USG (4* 3.7 L)"}, {"code": "32340038", "name": "Hardee's\u00a0Santa Fe Sauce 3.7L USG (4* 3.7 L)"}, {"code": "32350001", "name": "Spicy BBQ Sauce 3.1Kg AT (3.1Kg*6)"}, {"code": "32350002", "name": "Hot Sauce Jerry Can Miza (4*4.5kg)"}, {"code": "32350003", "name": "Mamia Hot Sauce 4.5kg Jerrycan - (4* 4.5kg)"}, {"code": "32360011", "name": "Hakaka sauce - HAKAKA (1*20kg)"}, {"code": "32360016", "name": "Trial White Chocolate"}, {"code": "32360017", "name": "Mayochup Pail AT 9.5 kg"}, {"code": "32360018", "name": "Mustard Paste Bulk"}, {"code": "32360019", "name": "Spicy Mayonnaise Bulk"}, {"code": "32360020", "name": "Myochup Sauce Bulk"}, {"code": "32360021", "name": "Mayonnaise 35% Bulk"}, {"code": "32360022", "name": "Garlic Sauce Bulk"}, {"code": "32360023", "name": "Pizza Sauce Bulk"}, {"code": "32360024", "name": "Mayonnaise 15% Bulk"}, {"code": "32360025", "name": "Mandi Sauce % Bulk"}, {"code": "32360026", "name": "Tomato Ketchup Bulk"}, {"code": "32360027", "name": "Red Tortilla Sauce's Bulk"}, {"code": "32360028", "name": "Italian Dressing Bulk"}, {"code": "32360029", "name": "NESKA Rice Mix Sauce 20kg Pail"}, {"code": "32360030", "name": "Treva Mayonnaise Bulk Trial"}, {"code": "32360031", "name": "Treva Tomato Ketchup Bulk Trial"}, {"code": "32360032", "name": "Al Rajhi Bulk Trial"}, {"code": "32360033", "name": "Dynamite Sauce Bulk"}, {"code": "32360034", "name": "Dunkin Trial Bulk Carmail"}, {"code": "32360036", "name": "Hardee's Bulk Trial"}, {"code": "32360037", "name": "Mayonnaise 75% Mama Bulk"}, {"code": "32360038", "name": "Hardee's Ranch Sauce Bulk"}, {"code": "32360039", "name": "Hot Sauce Bulk"}, {"code": "32360040", "name": "Curry Bulk"}, {"code": "32360041", "name": "Mayonnaise Bulk 65%"}, {"code": "32360042", "name": "1000 Island Dressing Sauce Bulk"}, {"code": "32360043", "name": "Daqoous Bulk Trial"}, {"code": "32360044", "name": "Sauce's Bulk Trial"}, {"code": "32360045", "name": "Coleslaw Bulk"}, {"code": "32360046", "name": "Shira Syrup Bulk"}, {"code": "32370001", "name": "Cilantro Sauce 40gm Dippot Kudu (200 PCS)"}, {"code": "32370002", "name": "Sweet Dynamite (Harissa) Sauce 40gm Dippot Kudu (200 PCS)"}, {"code": "32370003", "name": "1000 Island Sauce 40gm Dippot Kudu (200 PCS)"}, {"code": "32370004", "name": "BBQ Sauce 40gm Dippot Kudu (200 PCS)"}, {"code": "32370005", "name": "Italian Dressing 40gm Dippot Kudu (200 PCS)"}, {"code": "32370006", "name": "Creamy Ranch Sauce 40gm Dippot LC (200 PCS)"}, {"code": "32370009", "name": "Dynamite Sauce 40gm Dippot LC (200 PCS)"}, {"code": "32370010", "name": "Chipotle Sauce 40gm Dippot LC (200 PCS)"}, {"code": "32370011", "name": "BBQ Sauce 40gm Dippot LC (200 PCS)"}, {"code": "32370017", "name": "Dressing Sauce 40gm Dippot Kudu (200 PCS)"}, {"code": "32370018", "name": "Maple Syrup Sauce 40gm Dippot Kudu (200 PCS)"}, {"code": "32370019", "name": "K-Sauce 40gm Dippot Kudu (200 PCS)"}, {"code": "32370030", "name": "Spicy BBQ Sauce 40gm Dippot Al Tazaj (200 PCS)"}, {"code": "32370031", "name": "Honey Mustard Sauce 40gm Dippot Al Tazaj (200 PCS)"}, {"code": "32370032", "name": "Cocktail  Sauce 40gm Dippot Al Tazaj (200 PCS)"}, {"code": "32370033", "name": "Musahab Sauce 40g Dippot Al Tazaj Logo (40gm*200)"}, {"code": "32370034", "name": "Tikka Sauce 40g Dippot Al Tazaj Logo (40gm*200)"}, {"code": "32370035", "name": "Taza Sauce 40g Dippot Al Tazaj Logo (40gm*200)"}, {"code": "32370040", "name": "Spicy Garlic Sauce 40gm Dippot AlRomansiah (200 PCS)"}, {"code": "32370041", "name": "Garlic Sauce 40gm Dippot AlRomansiah (200 PCS)"}, {"code": "32370050", "name": "BBQ 40g Dippot  Al Burger (40gm*200)"}, {"code": "32370051", "name": "Honey Mustard 40g Dippot Al Burger (40gm*200)"}, {"code": "32370052", "name": "Garlic Mayo 40g Dippot Al Burger (40gm*200)"}, {"code": "32370053", "name": "Gold Star Sauce 40g Dippot Hardee's (40gm*200)"}, {"code": "32370054", "name": "Burrito Sauce 40g Dippot Hardee's (40gm*200)"}, {"code": "32370055", "name": "Garlic Mayo 40g Dippot Hardee's (40gm*200)"}, {"code": "32370056", "name": "Santa Fe Sauce 40g Dippot Hardee's (40gm*200)"}];
+const CONFIG = {
+  role: 'production',
+  roleLabel: 'Production',
+  otherLabel: 'Warehouse',
+  username: 'production',
+  password: 'prod123'
+};
+
+let itemMap = {};
+let customItems = []; // items added at runtime, shared across both apps via the sync sheet
+
+function rebuildItemMap(){
+  itemMap = {};
+  ITEMS.forEach(i => itemMap[i.code] = i.name);
+  customItems.forEach(i => itemMap[i.code] = i.name);
+}
+rebuildItemMap();
+
+const SYNC_URL = 'https://script.google.com/macros/s/AKfycbxfSPeALgR0AXuuwQMQpmQuoY9zAP14Q1_uP777oRLSTQM9iSbdYey8-zPS0_6lgKwm/exec';
+const SYNC_KEY = 'plant_transfer_tracker_v1';
+const ITEMS_DB_KEY = 'custom_items_db';
+const SERIAL_COUNTER_KEY = 'serial_counter';
+let pendingSerial = null;
+const ACCOUNTS_KEY = 'accounts_' + CONFIG.role;
+let accounts = [{ username: CONFIG.username, password: CONFIG.password, name: CONFIG.roleLabel + ' Main', isMain: true }];
+let currentUser = null; // the matched account object after login
+let state = { logs: [], pending: [], deleteRequests: [], editRequests: [], lastDirection: {} };
+let currentScan = null;
+let html5QrCode = null;
+let editingIndex = null;
+let editingSource = null; // 'pending' | 'log'
+let authenticated = false;
+let pendingFilterFrom = null, pendingFilterTo = null, pendingFilterText = '';
+let logFilterFrom = null, logFilterTo = null, logFilterText = '';
+let adjustFormOpenIndex = null;
+let selectedLogIds = new Set();
+let pollTimer = null;
+let saving = false;
+
+function showStatus(msg, ms=2400){
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(showStatus._t);
+  showStatus._t = setTimeout(()=>{ el.style.display='none'; }, ms);
+}
+
+function genId(){
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+}
+
+function otherRole(){
+  return CONFIG.role === 'production' ? 'warehouse' : 'production';
+}
+
+function updatePendingApprovalBadge(){
+  const count = state.pending.filter(p => p.status === 'pending' && p.initiatedBy !== CONFIG.role).length;
+  const delCount = state.deleteRequests.filter(d => d.requestedBy !== CONFIG.role).length;
+  const editCount = state.editRequests.filter(d => d.requestedBy !== CONFIG.role).length;
+  const total = count + delCount + editCount;
+  const badge = document.getElementById('approvalBadge');
+  if(!badge) return;
+  if(total > 0){
+    badge.style.display = 'inline-block';
+    badge.textContent = '🔔 ' + total + ' need' + (total === 1 ? 's' : '') + ' your approval';
+  }else{
+    badge.style.display = 'none';
+  }
+}
+
+let hasLoadedOnce = false;
+let lastKnownAdjustments = {}; // id -> adjustedQuantity, to detect new/changed adjustments
+let notifications = []; // {id, message, time} — local, persistent until dismissed
+
+function addNotification(message){
+  notifications.unshift({ id: genId(), message, time: new Date() });
+  renderNotifications();
+}
+
+function renderNotifications(){
+  const card = document.getElementById('notificationsCard');
+  const list = document.getElementById('notificationsList');
+  if(!notifications.length){
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  list.innerHTML = '';
+  notifications.forEach(n => {
+    const row = document.createElement('div');
+    row.style.cssText = 'background:rgba(240,151,61,0.15);border:1px solid var(--ware);color:var(--ware);border-radius:8px;padding:9px 10px;font-size:12.5px;font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;';
+    row.innerHTML = `
+      <div>${escapeHtml(n.message)}<div style="font-size:10.5px;color:var(--muted);font-weight:400;margin-top:3px;">${fmtDateTime(n.time)}</div></div>
+      <button data-id="${n.id}" class="dismiss-notif-btn" style="background:none;border:none;color:var(--ware);cursor:pointer;font-size:14px;flex-shrink:0;">✕</button>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('.dismiss-notif-btn').forEach(btn => btn.addEventListener('click', ()=>{
+    notifications = notifications.filter(n => n.id !== btn.dataset.id);
+    renderNotifications();
+  }));
+}
+
+async function loadState(silent){
+  try{
+    const res = await fetch(SYNC_URL + '?key=' + encodeURIComponent(SYNC_KEY));
+    const data = await res.json();
+    if(data && data.value){
+      const parsed = JSON.parse(data.value);
+      state.logs = parsed.logs || [];
+      state.pending = parsed.pending || [];
+      state.deleteRequests = parsed.deleteRequests || [];
+      state.editRequests = parsed.editRequests || [];
+      state.lastDirection = parsed.lastDirection || {};
+    }
+  }catch(e){
+    if(!silent) showStatus('Could not reach the shared sheet — check your internet connection');
+    console.error(e);
+  }
+
+  if(hasLoadedOnce){
+    state.pending.forEach(p => {
+      if(p.adjustedQuantity === undefined || p.adjustedQuantity === null) return;
+      const prev = lastKnownAdjustments[p.id];
+      const isNewOrChanged = prev === undefined || prev !== p.adjustedQuantity;
+      if(isNewOrChanged && p.initiatedBy === CONFIG.role){
+        const who = p.adjustedByName ? (CONFIG.otherLabel + ' (' + p.adjustedByName + ')') : CONFIG.otherLabel;
+        const msg = '⚠️ ' + who + ' adjusted item code "' + p.code + '" (' + p.name + '): ' + p.quantity + ' → ' + p.adjustedQuantity + ' (' + p.adjustmentReason + ') — approve to confirm';
+        showStatus(msg, 5000);
+        addNotification(msg);
+      }
+    });
+  }
+  lastKnownAdjustments = {};
+  state.pending.forEach(p => {
+    if(p.adjustedQuantity !== undefined && p.adjustedQuantity !== null){
+      lastKnownAdjustments[p.id] = p.adjustedQuantity;
+    }
+  });
+  hasLoadedOnce = true;
+
+  renderPending();
+  renderLog();
+  renderDeleteRequests();
+  renderEditRequests();
+  const amModal = document.getElementById('allMovementsModalOverlay');
+  if(amModal && amModal.style.display === 'flex') renderAllMovementsResults();
+}
+
+async function saveState(){
+  saving = true;
+  try{
+    const res = await fetch(SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ key: SYNC_KEY, value: JSON.stringify(state) })
+    });
+    if(!res.ok){ showStatus('Could not save — try again'); }
+  }catch(e){
+    showStatus('Could not reach the shared sheet while saving');
+    console.error(e);
+  }
+  saving = false;
+}
+
+function isUserEditing(){
+  if(adjustFormOpenIndex !== null) return true;
+  const resultCard = document.getElementById('resultCard');
+  if(resultCard && resultCard.style.display === 'block') return true;
+  const settingsModal = document.getElementById('settingsModalOverlay');
+  if(settingsModal && settingsModal.style.display === 'flex') return true;
+  const formModal = document.getElementById('formModalOverlay');
+  if(formModal && formModal.style.display === 'flex') return true;
+  const itemDbModal = document.getElementById('itemDbModalOverlay');
+  if(itemDbModal && itemDbModal.style.display === 'flex') return true;
+  const backupsModal = document.getElementById('backupsModalOverlay');
+  if(backupsModal && backupsModal.style.display === 'flex') return true;
+  return false;
+}
+
+function startPolling(){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(()=>{
+    if(authenticated && !saving && !isUserEditing()) loadState(true);
+  }, 8000);
+}
+
+function nextDirection(code){
+  const last = state.lastDirection[code];
+  if(last === 'Production → Warehouse') return 'Warehouse → Production';
+  return 'Production → Warehouse';
+}
+
+function fmtDateTime(d){
+  return d.toLocaleString(undefined, { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+function fmtTimeOnly(d){
+  return d.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' });
+}
+
+function toDateInputValue(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function byLabel(role, name){
+  if(!role) return '—';
+  return escapeHtml(role) + (name ? ' (' + escapeHtml(name) + ')' : '');
+}
+
+/* ---------------- Camera / scanning ---------------- */
+
+function openScanner(){
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('cameraErrorNote').style.display = 'none';
+  document.getElementById('readerWrap').style.display = 'block';
+  document.getElementById('scanBtn').style.display = 'none';
+
+  html5QrCode = new Html5Qrcode("reader");
+  const onSuccess = (decodedText) => handleScanResult(decodedText.trim());
+  const onFail = () => {};
+
+  html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 240 }, onSuccess, onFail)
+    .catch(err => {
+      html5QrCode.start({}, { fps: 10, qrbox: 240 }, onSuccess, onFail)
+        .catch(err2 => { showCameraError(err2); closeScanner(); });
+    });
+}
+
+function showCameraError(err){
+  const note = document.getElementById('cameraErrorNote');
+  note.style.display = 'block';
+  note.innerHTML = 'Camera not available (' + err + ').<br>Try opening this page directly in your phone&#39;s browser (Chrome/Safari), or use Upload Photo / manual code entry below.';
+}
+
+function closeScanner(){
+  document.getElementById('readerWrap').style.display = 'none';
+  document.getElementById('scanBtn').style.display = 'block';
+  if(html5QrCode){
+    html5QrCode.stop().then(()=>{ html5QrCode.clear(); }).catch(()=>{});
+    html5QrCode = null;
+  }
+}
+
+function selectDirection(dir){
+  if(currentScan) currentScan.direction = dir;
+  document.getElementById('optProdWare').classList.toggle('selected-prod', dir === 'Production → Warehouse');
+  document.getElementById('optWareProd').classList.toggle('selected-ware', dir === 'Warehouse → Production');
+}
+
+function guessShift(d){
+  const h = d.getHours();
+  if(h >= 8 && h < 20) return 'DAY';
+  return 'NIGHT';
+}
+
+function selectShift(shift){
+  if(currentScan) currentScan.shift = shift;
+  const map = { 'DAY': 'shiftDay', 'NIGHT': 'shiftNight' };
+  Object.keys(map).forEach(s=>{
+    document.getElementById(map[s]).classList.toggle('selected', s === shift);
+  });
+}
+
+function handleScanResult(code){
+  closeScanner();
+  editingIndex = null;
+  editingSource = null;
+  const name = itemMap[code];
+  const suggested = nextDirection(code);
+  const now = new Date();
+  currentScan = { code, name: name || null, direction: suggested, shift: guessShift(now), time: now };
+
+  document.getElementById('resCode').textContent = code;
+  document.getElementById('resName').textContent = name || '(unknown item — not in master list)';
+  document.getElementById('entryDateInput').value = toDateInputValue(now);
+  document.getElementById('resTime').textContent = fmtTimeOnly(now);
+  document.getElementById('qtyInput').value = '';
+  document.getElementById('prodDateInput').value = '';
+  document.getElementById('expDateInput').value = '';
+  document.getElementById('batchInput').value = '';
+  document.getElementById('uomInput').value = code.startsWith('3') ? 'CTN' : '';
+  document.getElementById('remarksInput').value = '';
+  document.getElementById('saveBtn').textContent = 'Send for Approval';
+  document.getElementById('notFoundNote').style.display = name ? 'none' : 'block';
+
+  document.getElementById('optProdWare').classList.remove('selected-prod');
+  document.getElementById('optWareProd').classList.remove('selected-ware');
+  selectDirection(suggested);
+  selectShift(currentScan.shift);
+
+  document.getElementById('resultCard').style.display = 'block';
+  document.getElementById('qtyInput').focus();
+}
+
+function editPendingEntry(index){
+  const e = state.pending[index];
+  if(e.initiatedBy !== CONFIG.role || e.status !== 'pending'){
+    showStatus('You can only edit your own pending items'); return;
+  }
+  editingIndex = index;
+  editingSource = 'pending';
+  populateEditForm(e, 'Update Pending Transfer');
+}
+
+function editLogEntry(index){
+  const e = state.logs[index];
+  editingIndex = index;
+  editingSource = 'log';
+  populateEditForm(e, 'Update Confirmed Entry');
+}
+
+function populateEditForm(e, saveLabel){
+  const ts = new Date(e.timestamp);
+  currentScan = { code: e.code, name: e.name, direction: e.direction, shift: e.shift, time: ts };
+  document.getElementById('resCode').textContent = e.code;
+  document.getElementById('resName').textContent = e.name;
+  document.getElementById('entryDateInput').value = toDateInputValue(ts);
+  document.getElementById('resTime').textContent = fmtTimeOnly(ts);
+  document.getElementById('qtyInput').value = e.quantity === null ? '' : e.quantity;
+  document.getElementById('prodDateInput').value = e.productionDate || '';
+  document.getElementById('expDateInput').value = e.expiryDate || '';
+  document.getElementById('batchInput').value = e.batchNo || '';
+  document.getElementById('uomInput').value = e.uom || '';
+  document.getElementById('remarksInput').value = e.remarks || '';
+  document.getElementById('saveBtn').textContent = saveLabel;
+  document.getElementById('notFoundNote').style.display = 'none';
+
+  document.getElementById('optProdWare').classList.remove('selected-prod');
+  document.getElementById('optWareProd').classList.remove('selected-ware');
+  selectDirection(e.direction);
+  selectShift(e.shift);
+
+  document.getElementById('resultCard').style.display = 'block';
+  document.getElementById('resultCard').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function saveScan(){
+  if(!currentScan) return;
+
+  // Block new scans for codes not in the item database (editing existing entries is unaffected)
+  if(editingSource === null && !itemMap[currentScan.code]){
+    showStatus('❌ Item code "' + currentScan.code + '" not found — add it in 📋 Items first');
+    return;
+  }
+
+  const qtyVal = document.getElementById('qtyInput').value;
+  const qty = qtyVal === '' ? null : Number(qtyVal);
+  const prodDate = document.getElementById('prodDateInput').value || null;
+  const expDate = document.getElementById('expDateInput').value || null;
+  const batchNo = document.getElementById('batchInput').value.trim() || null;
+  const uom = document.getElementById('uomInput').value.trim() || null;
+  const remarks = document.getElementById('remarksInput').value.trim() || null;
+
+  // Combine the user-chosen date (may be backdated) with the actual clock time
+  const chosenDateStr = document.getElementById('entryDateInput').value;
+  let finalTimestamp = currentScan.time;
+  if(chosenDateStr){
+    const [y, m, d] = chosenDateStr.split('-').map(Number);
+    const combined = new Date(currentScan.time);
+    combined.setFullYear(y, m - 1, d);
+    finalTimestamp = combined;
+  }
+
+  const baseFields = {
+    code: currentScan.code,
+    name: currentScan.name || '(unknown item)',
+    direction: currentScan.direction,
+    shift: currentScan.shift,
+    quantity: qty,
+    productionDate: prodDate,
+    expiryDate: expDate,
+    batchNo: batchNo,
+    uom: uom,
+    remarks: remarks,
+    timestamp: finalTimestamp.toISOString()
+  };
+
+  if(editingSource === 'pending'){
+    state.pending[editingIndex] = { ...state.pending[editingIndex], ...baseFields };
+    showStatus('Pending transfer updated');
+  }else if(editingSource === 'log'){
+    const entry = state.logs[editingIndex];
+    if(!entry.id){ entry.id = genId(); }
+
+    const already = state.editRequests.find(r => r.logId === entry.id && r.status === 'pending');
+    if(already){
+      showStatus('An edit request for this item is already pending approval');
+      document.getElementById('resultCard').style.display = 'none';
+      currentScan = null; editingIndex = null; editingSource = null;
+      return;
+    }
+
+    const previousValues = {
+      quantity: entry.quantity, direction: entry.direction, shift: entry.shift,
+      productionDate: entry.productionDate, expiryDate: entry.expiryDate,
+      batchNo: entry.batchNo, uom: entry.uom, remarks: entry.remarks
+    };
+
+    state.editRequests.unshift({
+      id: genId(),
+      logId: entry.id,
+      code: entry.code,
+      name: entry.name,
+      proposedChanges: baseFields,
+      previousValues: previousValues,
+      requestedBy: CONFIG.role,
+      requestedByName: currentUser.name,
+      requestedAt: new Date().toISOString(),
+      status: 'pending'
+    });
+    showStatus('Edit request sent to ' + CONFIG.otherLabel + ' for approval');
+  }else{
+    state.pending.unshift({
+      id: genId(),
+      ...baseFields,
+      initiatedBy: CONFIG.role,
+      initiatedByName: currentUser.name,
+      status: 'pending'
+    });
+    showStatus('Sent to ' + CONFIG.otherLabel + ' for approval');
+  }
+
+  state.lastDirection[currentScan.code] = currentScan.direction;
+  await saveState();
+  renderPending();
+  renderLog();
+  renderEditRequests();
+  document.getElementById('resultCard').style.display = 'none';
+  currentScan = null;
+  editingIndex = null;
+  editingSource = null;
+}
+
+/* ---------------- Approval workflow ---------------- */
+
+function itemHasAdjustment(item){
+  return item.adjustedQuantity !== undefined && item.adjustedQuantity !== null;
+}
+
+function currentApproverRole(item){
+  const normalApprover = item.initiatedBy === 'production' ? 'warehouse' : 'production';
+  // Once the receiving side adjusts the quantity, approval flips back to
+  // whoever originally sent the transfer, so they confirm the new number.
+  return itemHasAdjustment(item) ? item.initiatedBy : normalApprover;
+}
+
+async function approveEntry(index){
+  const item = state.pending[index];
+  if(!item || item.status !== 'pending') return;
+  if(CONFIG.role !== currentApproverRole(item)){
+    showStatus(itemHasAdjustment(item)
+      ? 'This quantity was adjusted — only ' + item.initiatedBy + ' can confirm it now'
+      : 'You cannot approve your own request');
+    return;
+  }
+
+  const confirmed = { ...item };
+  delete confirmed.status;
+  confirmed.approvedBy = CONFIG.role;
+  confirmed.approvedByName = currentUser.name;
+  confirmed.approvedAt = new Date().toISOString();
+
+  if(item.adjustedQuantity !== undefined && item.adjustedQuantity !== null){
+    confirmed.originalQuantity = item.quantity;
+    confirmed.quantity = item.adjustedQuantity;
+    // adjustmentReason, adjustedBy already carried over via the spread
+  }
+
+  state.logs.unshift(confirmed);
+  state.pending.splice(index, 1);
+  await saveState();
+  renderPending();
+  renderLog();
+  showStatus('Transfer approved and added to the confirmed log');
+}
+
+async function saveAdjustment(index){
+  const item = state.pending[index];
+  if(!item || item.status !== 'pending') return;
+  if(item.initiatedBy === CONFIG.role){ showStatus('Only the approving side can adjust the quantity'); return; }
+
+  const typeEl = document.querySelector(`input[name="adjType_${index}"]:checked`);
+  const type = typeEl ? typeEl.value : 'reduce';
+  const amountVal = document.getElementById('adjAmount_' + index).value;
+  const reason = document.getElementById('adjReason_' + index).value;
+
+  if(amountVal === '' || Number(amountVal) <= 0){ showStatus('Enter an amount greater than zero'); return; }
+  const amount = Number(amountVal);
+  const baseQty = item.quantity === null ? 0 : item.quantity;
+  const newQty = type === 'reduce' ? baseQty - amount : baseQty + amount;
+
+  if(newQty < 0){ showStatus('That reduction is larger than the original quantity'); return; }
+
+  item.adjustedQuantity = newQty;
+  item.adjustmentType = type;
+  item.adjustmentAmount = amount;
+  item.adjustmentReason = reason;
+  item.adjustedBy = CONFIG.role;
+  item.adjustedByName = currentUser.name;
+  item.adjustedAt = new Date().toISOString();
+
+  await saveState();
+  renderPending();
+  showStatus('Quantity adjustment saved — approve to confirm it');
+}
+
+function clearAdjustment(index){
+  const item = state.pending[index];
+  if(!item) return;
+  if(item.initiatedBy === CONFIG.role){ showStatus('Only the adjusting side can clear an adjustment'); return; }
+  delete item.adjustedQuantity;
+  delete item.adjustmentType;
+  delete item.adjustmentAmount;
+  delete item.adjustmentReason;
+  delete item.adjustedBy;
+  delete item.adjustedByName;
+  delete item.adjustedAt;
+  saveState();
+  renderPending();
+  showStatus('Adjustment cleared');
+}
+
+async function rejectEntry(index){
+  const item = state.pending[index];
+  if(!item || item.status !== 'pending') return;
+  if(CONFIG.role !== currentApproverRole(item)){
+    showStatus(itemHasAdjustment(item)
+      ? 'This quantity was adjusted — only ' + item.initiatedBy + ' can reject it now'
+      : 'You cannot reject your own request');
+    return;
+  }
+  if(!confirm('Reject this transfer request?')) return;
+
+  item.status = 'rejected';
+  item.rejectedBy = CONFIG.role;
+  item.rejectedByName = currentUser.name;
+  item.rejectedAt = new Date().toISOString();
+  await saveState();
+  renderPending();
+  showStatus('Transfer rejected');
+}
+
+async function cancelPending(index){
+  const item = state.pending[index];
+  if(!item || item.initiatedBy !== CONFIG.role) return;
+  if(!confirm('Withdraw this request?')) return;
+  state.pending.splice(index, 1);
+  await saveState();
+  renderPending();
+  showStatus('Request withdrawn');
+}
+
+async function dismissRejected(index){
+  state.pending.splice(index, 1);
+  await saveState();
+  renderPending();
+}
+
+async function deleteLogEntry(index){
+  if(!currentUser.isMain){ showStatus('Only the main account can delete confirmed entries'); return; }
+
+  const entry = state.logs[index];
+  if(!entry) return;
+  if(!entry.id){ entry.id = genId(); } // backfill id for entries saved before this feature existed
+
+  const already = state.deleteRequests.find(d => d.logId === entry.id && d.status === 'pending');
+  if(already){ showStatus('A delete request for this item is already pending'); return; }
+
+  if(!confirm('Request deletion of this entry? ' + CONFIG.otherLabel + ' will need to approve it before it is removed.')) return;
+
+  state.deleteRequests.unshift({
+    id: genId(),
+    logId: entry.id,
+    code: entry.code,
+    name: entry.name,
+    requestedBy: CONFIG.role,
+    requestedByName: currentUser.name,
+    requestedAt: new Date().toISOString(),
+    status: 'pending'
+  });
+  await saveState();
+  renderLog();
+  renderDeleteRequests();
+  showStatus('Delete request sent to ' + CONFIG.otherLabel + ' for approval');
+}
+
+async function approveDeleteRequest(index){
+  if(!currentUser.isMain){ showStatus('Only the main account can approve deletions'); return; }
+
+  const req = state.deleteRequests[index];
+  if(!req || req.status !== 'pending') return;
+  if(req.requestedBy === CONFIG.role){ showStatus('You cannot approve your own delete request'); return; }
+
+  state.logs = state.logs.filter(e => e.id !== req.logId);
+  state.deleteRequests.splice(index, 1);
+  await saveState();
+  renderLog();
+  renderDeleteRequests();
+  showStatus('Deletion approved — entry removed');
+}
+
+async function rejectDeleteRequest(index){
+  const req = state.deleteRequests[index];
+  if(!req || req.status !== 'pending') return;
+  if(req.requestedBy === CONFIG.role){ showStatus('You cannot reject your own delete request'); return; }
+  if(!confirm('Keep this entry and reject the delete request?')) return;
+
+  state.deleteRequests.splice(index, 1);
+  await saveState();
+  renderDeleteRequests();
+  showStatus('Delete request rejected — entry kept');
+}
+
+async function cancelDeleteRequest(index){
+  const req = state.deleteRequests[index];
+  if(!req || req.requestedBy !== CONFIG.role) return;
+  if(!confirm('Withdraw this delete request?')) return;
+
+  state.deleteRequests.splice(index, 1);
+  await saveState();
+  renderDeleteRequests();
+  showStatus('Delete request withdrawn');
+}
+
+async function approveEditRequest(index){
+  const req = state.editRequests[index];
+  if(!req || req.status !== 'pending') return;
+  if(req.requestedBy === CONFIG.role){ showStatus('You cannot approve your own edit request'); return; }
+
+  const entry = state.logs.find(e => e.id === req.logId);
+  if(entry){
+    Object.assign(entry, req.proposedChanges);
+  }
+  state.editRequests.splice(index, 1);
+  await saveState();
+  renderLog();
+  renderEditRequests();
+  showStatus('Edit approved and applied to the confirmed log');
+}
+
+async function rejectEditRequest(index){
+  const req = state.editRequests[index];
+  if(!req || req.status !== 'pending') return;
+  if(req.requestedBy === CONFIG.role){ showStatus('You cannot reject your own edit request'); return; }
+  if(!confirm('Keep the entry unchanged and reject this edit request?')) return;
+
+  state.editRequests.splice(index, 1);
+  await saveState();
+  renderEditRequests();
+  showStatus('Edit request rejected — entry unchanged');
+}
+
+async function cancelEditRequest(index){
+  const req = state.editRequests[index];
+  if(!req || req.requestedBy !== CONFIG.role) return;
+  if(!confirm('Withdraw this edit request?')) return;
+
+  state.editRequests.splice(index, 1);
+  await saveState();
+  renderEditRequests();
+  showStatus('Edit request withdrawn');
+}
+
+function diffEditFields(oldVals, newVals){
+  const labels = {
+    quantity: 'Quantity', direction: 'Direction', shift: 'Shift',
+    productionDate: 'Production Date', expiryDate: 'Expiry Date',
+    batchNo: 'Batch No.', uom: 'UOM', remarks: 'Remarks'
+  };
+  const changes = [];
+  Object.keys(labels).forEach(k => {
+    const ov = oldVals[k] === null || oldVals[k] === undefined ? '—' : oldVals[k];
+    const nv = newVals[k] === null || newVals[k] === undefined ? '—' : newVals[k];
+    if(String(ov) !== String(nv)){
+      changes.push(labels[k] + ': ' + ov + ' → ' + nv);
+    }
+  });
+  return changes;
+}
+
+
+/* ---------------- Rendering ---------------- */
+
+function entryMetaLine(e){
+  const d = new Date(e.timestamp);
+  const extras = [];
+  if(e.batchNo) extras.push('Batch: ' + escapeHtml(e.batchNo));
+  if(e.uom) extras.push('UOM: ' + escapeHtml(e.uom));
+  return {
+    top: `${escapeHtml(e.code)} · ${fmtDateTime(d)} · ${escapeHtml(e.shift || '—')} shift`,
+    dates: `Prod: ${e.productionDate || '—'} · Exp: ${e.expiryDate || '—'}`,
+    extras: extras.length ? extras.join(' · ') : null
+  };
+}
+
+function inDateRange(isoTimestamp, from, to){
+  if(!from && !to) return true;
+  const d = isoTimestamp.slice(0,10);
+  if(from && d < from) return false;
+  if(to && d > to) return false;
+  return true;
+}
+
+function matchesText(e, text){
+  if(!text) return true;
+  const t = text.toLowerCase();
+  return (e.code && e.code.toLowerCase().includes(t)) || (e.name && e.name.toLowerCase().includes(t));
+}
+
+let amFilterFrom = null, amFilterTo = null, amFilterText = '';
+
+let amStatusFilter = 'all'; // 'all' | 'confirmed' | 'pending'
+
+function getFilteredAllMovements(){
+  const from = amFilterFrom, to = amFilterTo, text = amFilterText;
+
+  const confirmedRows = state.logs
+    .filter(e => inDateRange(e.timestamp, from, to) && matchesText(e, text))
+    .map(e => ({ e, status: 'confirmed' }));
+
+  const pendingRows = state.pending
+    .filter(e => inDateRange(e.timestamp, from, to) && matchesText(e, text))
+    .map(e => ({ e, status: e.status === 'rejected' ? 'rejected' : 'pending' }));
+
+  let all = confirmedRows.concat(pendingRows);
+
+  if(amStatusFilter === 'confirmed'){
+    all = all.filter(r => r.status === 'confirmed');
+  }else if(amStatusFilter === 'pending'){
+    all = all.filter(r => r.status === 'pending' || r.status === 'rejected');
+  }
+
+  return all.sort((a, b) => new Date(b.e.timestamp) - new Date(a.e.timestamp));
+}
+
+function renderAllMovementsResults(){
+  const all = getFilteredAllMovements();
+
+  document.querySelectorAll('.am-status-btn').forEach(btn => {
+    const isActive = btn.dataset.status === amStatusFilter;
+    btn.style.background = isActive ? 'var(--accent)' : 'var(--panel-2)';
+    btn.style.color = isActive ? '#06111f' : 'var(--text)';
+    btn.style.borderColor = isActive ? 'var(--accent)' : 'var(--line)';
+  });
+
+  const RESULT_CAP = 200;
+  const capped = all.slice(0, RESULT_CAP);
+
+  document.getElementById('amResultsSummary').textContent = all.length + ' movement(s) found' +
+    (amFilterFrom || amFilterTo ? ' between ' + (amFilterFrom || '…') + ' and ' + (amFilterTo || '…') : '') +
+    (all.length > RESULT_CAP ? ' — showing first ' + RESULT_CAP + ', narrow your search to see more' : '');
+
+  const list = document.getElementById('amResultsList');
+  if(!all.length){
+    list.innerHTML = '<div id="emptyPending" style="padding:14px 0;">No movements match this search.</div>';
+    return;
+  }
+
+  const badgeStyles = {
+    confirmed: 'background:rgba(51,196,122,0.18);color:var(--good);',
+    pending: 'background:rgba(240,151,61,0.18);color:var(--ware);',
+    rejected: 'background:rgba(240,85,77,0.18);color:var(--bad);'
+  };
+  const badgeLabels = { confirmed: 'CONFIRMED', pending: 'PENDING', rejected: 'REJECTED' };
+
+  list.innerHTML = '';
+  capped.forEach(({e, status}) => {
+    const d = new Date(e.timestamp);
+    const dirClass = e.direction === 'Production → Warehouse' ? 'dir-prod' : 'dir-ware';
+    const row = document.createElement('div');
+    row.className = 'entry';
+    row.innerHTML = `
+      <div class="entry-left">
+        <div class="entry-name">${escapeHtml(e.name)}</div>
+        <div class="entry-meta">${escapeHtml(e.code)} · ${fmtDateTime(d)} · ${escapeHtml(e.shift || '—')} shift</div>
+        <span class="status-pill" style="${badgeStyles[status]}">${badgeLabels[status]}</span>
+      </div>
+      <div class="entry-right">
+        <div class="entry-qty">${e.quantity === null ? '—' : e.quantity}</div>
+        <div class="entry-dir ${dirClass}">${e.direction === 'Production → Warehouse' ? 'PROD→WH' : 'WH→PROD'}</div>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function buildAndPrintAllMovements(){
+  const all = getFilteredAllMovements();
+  if(!all.length){ showStatus('No movements match this search to print'); return false; }
+
+  const statusTags = { confirmed: '', pending: '[PENDING] ', rejected: '[REJECTED] ' };
+
+  // Reuse the same entry objects, just tag non-confirmed ones in Remarks
+  // so status is visible even on the official paper-style layout.
+  const entries = all.map(({e, status}) => ({
+    ...e,
+    remarks: statusTags[status] + (e.remarks || '')
+  }));
+
+  const html = buildOfficialFormPagesHtml(entries, {}, '', '');
+  document.getElementById('printForm').innerHTML = html;
+  return true;
+}
+
+function exportAllMovementsToExcel(){
+  const all = getFilteredAllMovements();
+  if(!all.length){ showStatus('No movements match this search to export'); return; }
+  if(typeof XLSX === 'undefined'){ showStatus('Export library did not load — check your internet connection'); return; }
+
+  const badgeLabels = { confirmed: 'Confirmed', pending: 'Pending', rejected: 'Rejected' };
+  const rows = all.map(({e, status}) => ({
+    'Timestamp': new Date(e.timestamp).toLocaleString(),
+    'Status': badgeLabels[status],
+    'Item Code': e.code,
+    'Item Name': e.name,
+    'Direction': e.direction,
+    'Shift': e.shift || '',
+    'Quantity': e.quantity === null ? '' : e.quantity,
+    'Original Quantity': e.originalQuantity !== undefined && e.originalQuantity !== null ? e.originalQuantity : '',
+    'Adjustment Reason': e.adjustmentReason || '',
+    'Production Date': e.productionDate || '',
+    'Expiry Date': e.expiryDate || '',
+    'Batch No.': e.batchNo || '',
+    'UOM': e.uom || '',
+    'Remarks': e.remarks || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:20},{wch:11},{wch:14},{wch:45},{wch:22},{wch:8},{wch:10},{wch:14},{wch:16},{wch:16},{wch:16},{wch:14},{wch:10},{wch:24}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'All Movements');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  XLSX.writeFile(wb, 'all_movements_search_' + stamp + '.xlsx');
+  showStatus('Excel file downloaded');
+}
+
+function renderPending(){
+  const list = document.getElementById('pendingList');
+  const filtered = [];
+  state.pending.forEach((e, i)=>{
+    if(inDateRange(e.timestamp, pendingFilterFrom, pendingFilterTo) && matchesText(e, pendingFilterText)) filtered.push({e, i});
+  });
+  if(!filtered.length){
+    list.innerHTML = '<div id="emptyPending">' + (state.pending.length ? 'No pending transfers match this search.' : 'No pending transfers.') + '</div>';
+    updatePendingApprovalBadge();
+    return;
+  }
+  list.innerHTML = '';
+  filtered.forEach(({e, i})=>{
+    const row = document.createElement('div');
+    row.className = 'entry';
+    const dirClass = e.direction === 'Production → Warehouse' ? 'dir-prod' : 'dir-ware';
+    const meta = entryMetaLine(e);
+    const isMine = e.initiatedBy === CONFIG.role;
+    const hasAdjustment = e.adjustedQuantity !== undefined && e.adjustedQuantity !== null;
+    const iAmApprover = e.status === 'pending' && CONFIG.role === currentApproverRole(e);
+
+    let statusPill;
+    if(e.status === 'rejected'){
+      statusPill = '<span class="status-pill status-rejected">Rejected by ' + escapeHtml(e.rejectedBy) + '</span>';
+    }else if(hasAdjustment){
+      statusPill = '<span class="status-pill status-pending">' +
+        (isMine ? 'Quantity adjusted — needs your confirmation' : 'Awaiting ' + escapeHtml(e.initiatedBy) + '\'s confirmation of adjustment') +
+        '</span>';
+    }else{
+      statusPill = '<span class="status-pill status-pending">' + (isMine ? 'Awaiting ' + CONFIG.otherLabel : 'Needs your approval') + '</span>';
+    }
+
+    const qtyDisplay = hasAdjustment
+      ? `<div class="entry-qty" style="color:var(--ware);">${e.quantity} → ${e.adjustedQuantity}</div>`
+      : `<div class="entry-qty">${e.quantity === null ? '—' : e.quantity}</div>`;
+    const adjustmentNote = hasAdjustment
+      ? `<div style="background:rgba(240,151,61,0.15);border:1px solid var(--ware);color:var(--ware);border-radius:8px;padding:7px 10px;font-size:11.5px;font-weight:600;margin:6px 0;">⚠️ ${e.adjustmentType === 'increase' ? 'Increased' : 'Reduced'} by ${e.adjustmentAmount} (${escapeHtml(e.quantity)} → ${escapeHtml(e.adjustedQuantity)}) — ${escapeHtml(e.adjustmentReason)}, by ${byLabel(e.adjustedBy, e.adjustedByName)}</div>`
+      : '';
+
+    let actions = '';
+    if(e.status === 'pending' && iAmApprover){
+      // Whoever currently holds approval rights (flips to the initiator once adjusted)
+      actions = `<button class="approve-btn" data-idx="${i}">✓ Approve</button><button class="reject-btn" data-idx="${i}">✕ Reject</button>`;
+      if(!isMine){
+        // Only the non-initiating side (the one who can adjust) sees the Adjust button
+        actions += `<button class="cancel-btn adjust-toggle-btn" data-idx="${i}">✎ Adjust Qty</button>`;
+      }
+    }else if(e.status === 'pending' && !isMine && hasAdjustment){
+      // Adjuster's own item is now awaiting the initiator — still allow revising the adjustment
+      actions = `<button class="cancel-btn adjust-toggle-btn" data-idx="${i}">✎ Revise Adjustment</button><button class="cancel-btn clear-adjust-btn" data-idx="${i}">Clear Adjustment</button>`;
+    }else if(e.status === 'pending' && isMine && !hasAdjustment){
+      actions = `<button class="cancel-btn" data-idx="${i}">🗑 Delete</button>`;
+    }else if(e.status === 'rejected' && isMine){
+      actions = `<button class="cancel-btn dismiss-btn" data-idx="${i}">Dismiss</button>`;
+    }
+
+    const showAdjustForm = adjustFormOpenIndex === i;
+    const curType = e.adjustmentType || 'reduce';
+    const adjustForm = showAdjustForm ? `
+      <div style="margin-top:8px;padding:10px;background:var(--panel-2);border-radius:8px;">
+        <div class="field-label">Original quantity: ${e.quantity === null ? '—' : e.quantity}</div>
+        <div class="shift-choice" style="margin-top:6px;">
+          <label class="shift-option ${curType === 'reduce' ? 'selected' : ''}" style="cursor:pointer;">
+            <input type="radio" name="adjType_${i}" value="reduce" ${curType === 'reduce' ? 'checked' : ''} style="display:none;" onclick="this.closest('.shift-choice').querySelectorAll('.shift-option').forEach(o=>o.classList.remove('selected'));this.closest('label').classList.add('selected');">
+            ➖ Reduce
+          </label>
+          <label class="shift-option ${curType === 'increase' ? 'selected' : ''}" style="cursor:pointer;">
+            <input type="radio" name="adjType_${i}" value="increase" ${curType === 'increase' ? 'checked' : ''} style="display:none;" onclick="this.closest('.shift-choice').querySelectorAll('.shift-option').forEach(o=>o.classList.remove('selected'));this.closest('label').classList.add('selected');">
+            ➕ Increase
+          </label>
+        </div>
+        <div class="field-label">Amount to ${curType === 'increase' ? 'add' : 'subtract'}</div>
+        <input type="number" id="adjAmount_${i}" min="0.01" step="any" value="${hasAdjustment ? e.adjustmentAmount : ''}" placeholder="e.g. 5" style="margin-bottom:8px;">
+        <div class="field-label">Reason</div>
+        <select id="adjReason_${i}" style="width:100%;padding:11px;font-size:14px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);margin-bottom:8px;">
+          <option value="Quality Sample" ${e.adjustmentReason === 'Quality Sample' ? 'selected' : ''}>Quality Sample</option>
+          <option value="Counting Mistake" ${e.adjustmentReason === 'Counting Mistake' ? 'selected' : ''}>Counting Mistake</option>
+          <option value="Other" ${e.adjustmentReason === 'Other' ? 'selected' : ''}>Other</option>
+        </select>
+        <div class="row-btns" style="margin-top:0;">
+          <button class="btn btn-cancel adjust-cancel-btn" data-idx="${i}">Cancel</button>
+          <button class="btn btn-save adjust-save-btn" data-idx="${i}">Save Adjustment</button>
+        </div>
+      </div>` : '';
+
+    row.innerHTML = `
+      <div class="entry-left">
+        <div class="entry-name">${escapeHtml(e.name)}</div>
+        <div class="entry-meta">${meta.top}</div>
+        <div class="entry-meta">${meta.dates}</div>
+        ${meta.extras ? `<div class="entry-meta">${meta.extras}</div>` : ''}
+        ${adjustmentNote}
+        ${statusPill}
+        ${adjustForm}
+      </div>
+      <div class="entry-right">
+        ${qtyDisplay}
+        <div class="entry-dir ${dirClass}">${e.direction === 'Production → Warehouse' ? 'PROD→WH' : 'WH→PROD'}</div>
+        <div class="entry-actions">${actions}</div>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('.approve-btn').forEach(btn => btn.addEventListener('click', ()=> approveEntry(Number(btn.dataset.idx))));
+  list.querySelectorAll('.reject-btn').forEach(btn => btn.addEventListener('click', ()=> rejectEntry(Number(btn.dataset.idx))));
+  list.querySelectorAll('.cancel-btn:not(.dismiss-btn):not(.adjust-toggle-btn):not(.clear-adjust-btn)').forEach(btn => btn.addEventListener('click', ()=> cancelPending(Number(btn.dataset.idx))));
+  list.querySelectorAll('.dismiss-btn').forEach(btn => btn.addEventListener('click', ()=> dismissRejected(Number(btn.dataset.idx))));
+  list.querySelectorAll('.clear-adjust-btn').forEach(btn => btn.addEventListener('click', ()=> clearAdjustment(Number(btn.dataset.idx))));
+  list.querySelectorAll('.adjust-toggle-btn').forEach(btn => btn.addEventListener('click', ()=>{
+    const idx = Number(btn.dataset.idx);
+    adjustFormOpenIndex = (adjustFormOpenIndex === idx) ? null : idx;
+    renderPending();
+  }));
+  list.querySelectorAll('.adjust-cancel-btn').forEach(btn => btn.addEventListener('click', ()=>{
+    adjustFormOpenIndex = null;
+    renderPending();
+  }));
+  list.querySelectorAll('.adjust-save-btn').forEach(btn => btn.addEventListener('click', async ()=>{
+    const idx = Number(btn.dataset.idx);
+    await saveAdjustment(idx);
+    adjustFormOpenIndex = null;
+    renderPending();
+  }));
+  updatePendingApprovalBadge();
+}
+
+function renderLog(){
+  const list = document.getElementById('logList');
+  const filtered = [];
+  state.logs.forEach((e, i)=>{
+    if(!e.id){ e.id = genId(); }
+    if(inDateRange(e.timestamp, logFilterFrom, logFilterTo) && matchesText(e, logFilterText)) filtered.push({e, i});
+  });
+  if(!filtered.length){
+    list.innerHTML = '<div id="emptyLog">' + (state.logs.length ? 'No confirmed entries match this search.' : 'No confirmed transfers yet.') + '</div>';
+    return;
+  }
+  list.innerHTML = '';
+  filtered.slice(0, 200).forEach(({e, i})=>{
+    const row = document.createElement('div');
+    row.className = 'entry';
+    const dirClass = e.direction === 'Production → Warehouse' ? 'dir-prod' : 'dir-ware';
+    const meta = entryMetaLine(e);
+    const hasAdjustment = e.originalQuantity !== undefined && e.originalQuantity !== null;
+    const qtyDisplay = hasAdjustment
+      ? `<div class="entry-qty" style="color:var(--ware);">${e.originalQuantity} → ${e.quantity}</div>`
+      : `<div class="entry-qty">${e.quantity === null ? '—' : e.quantity}</div>`;
+    const adjustmentNote = hasAdjustment
+      ? `<div style="background:rgba(240,151,61,0.15);border:1px solid var(--ware);color:var(--ware);border-radius:8px;padding:7px 10px;font-size:11.5px;font-weight:600;margin:6px 0;">⚠️ ${e.adjustmentType === 'increase' ? 'Increased' : 'Reduced'} from ${e.originalQuantity} by ${e.adjustmentAmount !== undefined ? e.adjustmentAmount : '?'} — ${escapeHtml(e.adjustmentReason || 'Unspecified')}, by ${byLabel(e.adjustedBy, e.adjustedByName)}</div>`
+      : '';
+    const isChecked = selectedLogIds.has(e.id);
+    row.innerHTML = `
+      <input type="checkbox" class="entry-check" data-idx="${i}" data-id="${e.id}" ${isChecked ? 'checked' : ''}>
+      <div class="entry-left">
+        <div class="entry-name">${escapeHtml(e.name)}</div>
+        <div class="entry-meta">${meta.top}</div>
+        <div class="entry-meta">${meta.dates}</div>
+        ${meta.extras ? `<div class="entry-meta">${meta.extras}</div>` : ''}
+        ${adjustmentNote}
+        <div class="entry-meta">Approved by ${byLabel(e.approvedBy, e.approvedByName)}</div>
+      </div>
+      <div class="entry-right">
+        ${qtyDisplay}
+        <div class="entry-dir ${dirClass}">${e.direction === 'Production → Warehouse' ? 'PROD→WH' : 'WH→PROD'}</div>
+        <div class="entry-actions">
+          <button class="edit-btn" data-idx="${i}">✏️ Edit</button>
+          ${currentUser.isMain ? `<button class="del-btn" data-idx="${i}">🗑 Delete</button>` : ''}
+        </div>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', ()=> editLogEntry(Number(btn.dataset.idx))));
+  list.querySelectorAll('.del-btn').forEach(btn => btn.addEventListener('click', ()=> deleteLogEntry(Number(btn.dataset.idx))));
+  list.querySelectorAll('.entry-check').forEach(chk => chk.addEventListener('change', ()=>{
+    if(chk.checked) selectedLogIds.add(chk.dataset.id);
+    else selectedLogIds.delete(chk.dataset.id);
+  }));
+
+  const allChecked = filtered.length > 0 && filtered.every(({e}) => selectedLogIds.has(e.id));
+  document.getElementById('selectAllChk').checked = allChecked;
+}
+
+function renderDeleteRequests(){
+  const list = document.getElementById('deleteRequestsList');
+  if(!list) return;
+  if(!state.deleteRequests.length){
+    list.innerHTML = '<div id="emptyDeleteRequests">No deletion requests.</div>';
+    updatePendingApprovalBadge();
+    return;
+  }
+  list.innerHTML = '';
+  state.deleteRequests.forEach((r, i)=>{
+    const row = document.createElement('div');
+    row.className = 'entry';
+    const isMine = r.requestedBy === CONFIG.role;
+    const statusPill = '<span class="status-pill status-pending">' + (isMine ? 'Awaiting ' + CONFIG.otherLabel : 'Needs your approval') + '</span>';
+    let actions = '';
+    if(!isMine && currentUser.isMain){
+      actions = `<button class="approve-btn" data-idx="${i}">✓ Approve Delete</button><button class="reject-btn" data-idx="${i}">✕ Keep Entry</button>`;
+    }else if(!isMine){
+      actions = `<span style="font-size:11px;color:var(--muted);">Only the main account can approve this</span>`;
+    }else{
+      actions = `<button class="cancel-btn" data-idx="${i}">Withdraw</button>`;
+    }
+    row.innerHTML = `
+      <div class="entry-left">
+        <div class="entry-name">${escapeHtml(r.name)}</div>
+        <div class="entry-meta">${escapeHtml(r.code)} · requested ${fmtDateTime(new Date(r.requestedAt))} by ${byLabel(r.requestedBy, r.requestedByName)}</div>
+        ${statusPill}
+      </div>
+      <div class="entry-right">
+        <div class="entry-actions">${actions}</div>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('.approve-btn').forEach(btn => btn.addEventListener('click', ()=> approveDeleteRequest(Number(btn.dataset.idx))));
+  list.querySelectorAll('.reject-btn').forEach(btn => btn.addEventListener('click', ()=> rejectDeleteRequest(Number(btn.dataset.idx))));
+  list.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', ()=> cancelDeleteRequest(Number(btn.dataset.idx))));
+  updatePendingApprovalBadge();
+}
+
+function renderEditRequests(){
+  const list = document.getElementById('editRequestsList');
+  if(!list) return;
+  if(!state.editRequests.length){
+    list.innerHTML = '<div id="emptyEditRequests">No edit requests.</div>';
+    updatePendingApprovalBadge();
+    return;
+  }
+  list.innerHTML = '';
+  state.editRequests.forEach((r, i)=>{
+    const row = document.createElement('div');
+    row.className = 'entry';
+    const isMine = r.requestedBy === CONFIG.role;
+    const statusPill = '<span class="status-pill status-pending">' + (isMine ? 'Awaiting ' + CONFIG.otherLabel : 'Needs your approval') + '</span>';
+    const changes = diffEditFields(r.previousValues, r.proposedChanges);
+    const changesHtml = changes.length
+      ? changes.map(c => `<div class="entry-meta">${escapeHtml(c)}</div>`).join('')
+      : '<div class="entry-meta">No field changes detected</div>';
+    let actions = '';
+    if(!isMine){
+      actions = `<button class="approve-btn" data-idx="${i}">✓ Approve Edit</button><button class="reject-btn" data-idx="${i}">✕ Reject</button>`;
+    }else{
+      actions = `<button class="cancel-btn" data-idx="${i}">Withdraw</button>`;
+    }
+    row.innerHTML = `
+      <div class="entry-left">
+        <div class="entry-name">${escapeHtml(r.name)}</div>
+        <div class="entry-meta">${escapeHtml(r.code)} · requested ${fmtDateTime(new Date(r.requestedAt))} by ${byLabel(r.requestedBy, r.requestedByName)}</div>
+        ${changesHtml}
+        ${statusPill}
+      </div>
+      <div class="entry-right">
+        <div class="entry-actions">${actions}</div>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('.approve-btn').forEach(btn => btn.addEventListener('click', ()=> approveEditRequest(Number(btn.dataset.idx))));
+  list.querySelectorAll('.reject-btn').forEach(btn => btn.addEventListener('click', ()=> rejectEditRequest(Number(btn.dataset.idx))));
+  list.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', ()=> cancelEditRequest(Number(btn.dataset.idx))));
+  updatePendingApprovalBadge();
+}
+
+/* ---------------- Excel export ---------------- */
+
+function exportToExcel(entriesOverride, filenamePrefix){
+  const entries = entriesOverride || state.logs;
+  if(!entries.length){ showStatus('No confirmed scans to export yet'); return; }
+  if(typeof XLSX === 'undefined'){ showStatus('Export library did not load — check your internet connection'); return; }
+
+  const rows = entries.map(e => ({
+    'Timestamp': new Date(e.timestamp).toLocaleString(),
+    'Item Code': e.code,
+    'Item Name': e.name,
+    'Direction': e.direction,
+    'Shift': e.shift || '',
+    'Original Quantity': e.originalQuantity !== undefined && e.originalQuantity !== null ? e.originalQuantity : '',
+    'Adjustment Type': e.adjustmentType || '',
+    'Adjustment Amount': e.adjustmentAmount !== undefined ? e.adjustmentAmount : '',
+    'Final Quantity (Approved)': e.quantity === null ? '' : e.quantity,
+    'Adjustment Reason': e.adjustmentReason || '',
+    'Adjusted By': e.adjustedBy || '',
+    'Production Date': e.productionDate || '',
+    'Expiry Date': e.expiryDate || '',
+    'Batch No.': e.batchNo || '',
+    'UOM': e.uom || '',
+    'Remarks': e.remarks || '',
+    'Approved By': e.approvedBy || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:20},{wch:14},{wch:45},{wch:22},{wch:10},{wch:14},{wch:12},{wch:14},{wch:18},{wch:16},{wch:12},{wch:16},{wch:16},{wch:14},{wch:10},{wch:24},{wch:12}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Movement Log');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  XLSX.writeFile(wb, (filenamePrefix || 'movement_log') + '_' + stamp + '.xlsx');
+  showStatus('Excel file downloaded');
+}
+
+/* ---------------- WH-PRO-1-F-12 form generation ---------------- */
+
+function getSelectedIndices(){
+  const indices = [];
+  state.logs.forEach((e, i) => {
+    if(e.id && selectedLogIds.has(e.id)) indices.push(i);
+  });
+  return indices;
+}
+
+function buildAndPrintHistory(){
+  const entries = state.logs.filter(e =>
+    inDateRange(e.timestamp, logFilterFrom, logFilterTo) && matchesText(e, logFilterText)
+  );
+  if(!entries.length){ showStatus('No confirmed movements to print'); return false; }
+
+  let rowsHtml = '';
+  entries.forEach((e, idx) => {
+    const d = new Date(e.timestamp);
+    const qtyText = (e.originalQuantity !== undefined && e.originalQuantity !== null)
+      ? `${e.originalQuantity} → ${e.quantity}*`
+      : `${e.quantity === null ? '' : e.quantity}`;
+    rowsHtml += `<tr>
+      <td>${idx + 1}</td>
+      <td>${fmtDateTime(d)}</td>
+      <td>${escapeHtml(e.code)}</td>
+      <td style="text-align:left;">${escapeHtml(e.name)}</td>
+      <td>${e.direction === 'Production → Warehouse' ? 'PR to WH' : 'WH to PR'}</td>
+      <td>${escapeHtml(e.shift || '')}</td>
+      <td>${qtyText}</td>
+      <td>${escapeHtml(e.batchNo || '')}</td>
+      <td>${escapeHtml(e.uom || '')}</td>
+      <td>${escapeHtml(e.approvedBy || '')}</td>
+    </tr>`;
+  });
+
+  const hasAnyAdjustment = entries.some(e => e.originalQuantity !== undefined && e.originalQuantity !== null);
+
+  const html = `
+    <div class="pf-page">
+      <div style="text-align:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:bold;">Movement History Report</div>
+        <div style="font-size:12px;color:#444;margin-top:4px;">Generated ${fmtDateTime(new Date())} — ${entries.length} record(s)</div>
+      </div>
+      <table class="pf-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Timestamp</th><th>Item Code</th><th>Item Name</th>
+            <th>Transfer</th><th>Shift</th><th>Quantity</th><th>Batch No.</th><th>UOM</th><th>Approved By</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      ${hasAnyAdjustment ? '<div style="font-size:11px;color:#444;margin-top:10px;">* Quantity was adjusted after the original transfer (see app for reason/who).</div>' : ''}
+    </div>`;
+
+  document.getElementById('printForm').innerHTML = html;
+  return true;
+}
+
+function aggregateByCode(items){
+  const groups = {};
+  items.forEach(e => {
+    if(!groups[e.code]) groups[e.code] = [];
+    groups[e.code].push(e);
+  });
+  const uniqueOrLabel = (list, field) => {
+    const vals = [...new Set(list.map(e => e[field]).filter(v => v !== null && v !== undefined && v !== ''))];
+    if(vals.length === 0) return '';
+    if(vals.length === 1) return vals[0];
+    return 'Multiple';
+  };
+  const joinAllBatches = (list) => {
+    const vals = list.map(e => e.batchNo).filter(v => v !== null && v !== undefined && v !== '');
+    if(!vals.length) return '';
+    // Keep duplicates and order (e.g. multiple deliveries of the same batch still show once each)
+    return vals.join('-');
+  };
+  return Object.keys(groups).map(code => {
+    const list = groups[code];
+    const sumQty = list.reduce((s, e) => s + (e.quantity || 0), 0);
+    return {
+      code: code,
+      name: list[0].name,
+      productionDate: uniqueOrLabel(list, 'productionDate'),
+      expiryDate: uniqueOrLabel(list, 'expiryDate'),
+      batchNo: joinAllBatches(list),
+      uom: uniqueOrLabel(list, 'uom'),
+      quantity: sumQty,
+      remarks: uniqueOrLabel(list, 'remarks'),
+      direction: list[0].direction,
+      shift: list[0].shift,
+      timestamp: list[0].timestamp
+    };
+  });
+}
+
+function groupEntriesByDateShift(entries, fallbackDate, fallbackShift){
+  const SHIFT_ORDER = { 'DAY': 0, 'NIGHT': 1 };
+  const groups = {};
+  entries.forEach(e => {
+    const d = e.timestamp ? e.timestamp.slice(0,10) : (fallbackDate || '');
+    const s = e.shift || fallbackShift || 'Unspecified';
+    const key = d + '|' + s;
+    if(!groups[key]) groups[key] = { date: d, shift: s, items: [] };
+    groups[key].items.push(e);
+  });
+
+  const groupKeys = Object.keys(groups).sort((a,b) => {
+    const ga = groups[a], gb = groups[b];
+    if(ga.date !== gb.date) return ga.date < gb.date ? -1 : 1;
+    return (SHIFT_ORDER[ga.shift] ?? 9) - (SHIFT_ORDER[gb.shift] ?? 9);
+  });
+
+  return { groups, groupKeys };
+}
+
+function buildOfficialFormPagesHtml(entries, serialMap, fallbackDate, fallbackShift, shouldSum){
+  const reqDept = CONFIG.role === 'production' ? 'WH' : 'PR';
+  const issueDept = CONFIG.role === 'production' ? 'PR' : 'WH';
+
+  const { groups, groupKeys } = groupEntriesByDateShift(entries, fallbackDate, fallbackShift);
+
+  let html = '';
+
+  groupKeys.forEach(key => {
+    const group = groups[key];
+    const serial = (serialMap && serialMap[key]) || '';
+    const itemsForRows = shouldSum ? aggregateByCode(group.items) : group.items;
+
+    let rowsHtml = '';
+    itemsForRows.forEach((e, idx) => {
+      rowsHtml += `<tr>
+        <td>${idx + 1}</td>
+        <td>${escapeHtml(e.code)}</td>
+        <td style="text-align:left;">${escapeHtml(e.name)}</td>
+        <td>${e.productionDate || ''}</td>
+        <td>${e.expiryDate || ''}</td>
+        <td>${escapeHtml(e.batchNo || '')}</td>
+        <td>${escapeHtml(e.uom || '')}</td>
+        <td>${e.quantity === null ? '' : e.quantity}</td>
+        <td style="text-align:left;">${escapeHtml(e.remarks || '')}</td>
+      </tr>`;
+    });
+
+    html += `
+      <div class="pf-page">
+        <table class="pf-header-table">
+          <tr>
+            <td style="width:18%;">Document Name.</td>
+            <td colspan="2" class="pf-doc-title">Finished Products Addition Request</td>
+            <td rowspan="3" style="width:12%;text-align:center;padding:4px;"><img src="data:image/png;base64,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" style="max-width:100%;max-height:90px;"></td>
+          </tr>
+          <tr>
+            <td>Document No.</td>
+            <td colspan="2" class="pf-doc-no">WH-PRO-1-F-12</td>
+          </tr>
+          <tr>
+            <td>Issue date</td>
+            <td>01/04/2025</td>
+            <td>Version&nbsp;&nbsp;&nbsp;1</td>
+          </tr>
+        </table>
+
+        <div class="pf-meta-row">
+          <div>Date: <span>${group.date}</span></div>
+          <div>Shift: <span>${escapeHtml(group.shift)}</span></div>
+          <div>Serial no.: <span>${escapeHtml(serial)}</span></div>
+        </div>
+        <div class="pf-meta-row">
+          <div>Transfer: <span style="font-weight:bold;">${CONFIG.role === 'production' ? 'Production' : 'Warehouse'}</span></div>
+        </div>
+        <div class="pf-meta-row">
+          <div>Requesting Dept.: <span>${escapeHtml(reqDept)}</span></div>
+          <div>Issuing Dept.: <span>${escapeHtml(issueDept)}</span></div>
+        </div>
+
+        <table class="pf-table">
+          <thead>
+            <tr>
+              <th>SN</th><th>Product Code</th><th>Product Description</th>
+              <th>Production date</th><th>Expiry Date</th><th>Batch No.</th>
+              <th>UOM</th><th>QT</th><th>Remarks</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+
+        <table class="pf-sign-table">
+          <tr>
+            <td class="sign-label" style="width:33%;">Production Supervisor</td>
+            <td class="sign-label" style="width:33%;">Quality Representative</td>
+            <td class="sign-label" style="width:34%;">Warehouse Supervisor</td>
+          </tr>
+          <tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+          </tr>
+        </table>
+      </div>`;
+  });
+
+  return html;
+}
+
+async function buildPrintForm(){
+  const idxs = getSelectedIndices();
+  if(!idxs.length){ showStatus('Select at least one confirmed entry first'); return false; }
+
+  const fallbackDate = document.getElementById('formDate').value || '';
+  const fallbackShift = document.getElementById('formShift').value || '';
+  const shouldSum = document.getElementById('sumQuantitiesChk').checked;
+
+  const entries = idxs.map(i => state.logs[i]);
+
+  // One serial number per unique (date, shift) — same day+shift shares one serial,
+  // a different shift or day always gets a fresh one.
+  const { groupKeys } = groupEntriesByDateShift(entries, fallbackDate, fallbackShift);
+  const serialMap = {};
+  for(const key of groupKeys){
+    serialMap[key] = await generateNextSerial();
+  }
+
+  const html = buildOfficialFormPagesHtml(entries, serialMap, fallbackDate, fallbackShift, shouldSum);
+
+  document.getElementById('printForm').innerHTML = html;
+  return true;
+}
+
+/* ---------------- Login ---------------- */
+
+async function fetchAccounts(){
+  try{
+    const res = await fetch(SYNC_URL + '?key=' + encodeURIComponent(ACCOUNTS_KEY));
+    const data = await res.json();
+    if(data && data.value){
+      const parsed = JSON.parse(data.value);
+      if(Array.isArray(parsed) && parsed.length){
+        accounts = parsed;
+      }
+    }
+  }catch(e){
+    console.error('Could not fetch stored accounts, using defaults', e);
+  }
+}
+
+async function saveAccounts(){
+  try{
+    const res = await fetch(SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ key: ACCOUNTS_KEY, value: JSON.stringify(accounts) })
+    });
+    return res.ok;
+  }catch(e){
+    console.error(e);
+    return false;
+  }
+}
+
+async function fetchBackupsList(){
+  const list = document.getElementById('backupsList');
+  list.innerHTML = '<div style="padding:14px 0;color:var(--muted);font-size:13px;">Loading versions…</div>';
+  try{
+    const res = await fetch(SYNC_URL + '?action=listBackups&key=' + encodeURIComponent(SYNC_KEY));
+    const data = await res.json();
+    const backups = (data && data.backups) || [];
+    renderBackupsList(backups);
+  }catch(e){
+    console.error(e);
+    list.innerHTML = '<div style="padding:14px 0;color:var(--bad);font-size:13px;">Could not load version history — check your internet connection.</div>';
+  }
+}
+
+function renderBackupsList(backups){
+  const list = document.getElementById('backupsList');
+  if(!backups.length){
+    list.innerHTML = '<div style="padding:14px 0;color:var(--muted);font-size:13px;">No earlier versions yet — one is created automatically the next time any data changes.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  backups.forEach(b => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);gap:8px;';
+    row.innerHTML = `
+      <div style="font-size:13px;">${escapeHtml(fmtDateTime(new Date(b.timestamp)))}</div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button data-row="${b.row}" class="view-backup-btn" style="background:none;border:1px solid var(--line);color:var(--text);font-size:11.5px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;">👁 View</button>
+        <button data-row="${b.row}" class="restore-backup-btn" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-size:11.5px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;">Restore</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('.restore-backup-btn').forEach(btn => btn.addEventListener('click', ()=> restoreBackup(Number(btn.dataset.row))));
+  list.querySelectorAll('.view-backup-btn').forEach(btn => btn.addEventListener('click', ()=> previewBackup(Number(btn.dataset.row))));
+}
+
+async function previewBackup(row){
+  const list = document.getElementById('backupsList');
+  list.innerHTML = '<div style="padding:14px 0;color:var(--muted);font-size:13px;">Loading preview…</div>';
+  try{
+    const res = await fetch(SYNC_URL + '?action=getBackup&row=' + row);
+    const data = await res.json();
+    if(!data || !data.value){
+      list.innerHTML = '<div style="padding:14px 0;color:var(--bad);font-size:13px;">Could not load that version.</div>';
+      return;
+    }
+    const parsed = JSON.parse(data.value);
+    const logs = parsed.logs || [];
+    const pending = parsed.pending || [];
+    const deleteReqs = parsed.deleteRequests || [];
+    const editReqs = parsed.editRequests || [];
+
+    const summary = `<div style="font-size:12px;color:var(--muted);margin-bottom:12px;padding:8px 10px;background:var(--panel-2);border-radius:8px;">
+      ${logs.length} confirmed &middot; ${pending.length} pending &middot; ${deleteReqs.length} delete request(s) &middot; ${editReqs.length} edit request(s)
+    </div>`;
+
+    let rowsHtml = '';
+    if(!logs.length){
+      rowsHtml = '<div style="padding:10px 0;color:var(--muted);font-size:13px;">No confirmed entries in this version.</div>';
+    }else{
+      logs.slice(0, 200).forEach(e => {
+        const d = new Date(e.timestamp);
+        rowsHtml += `
+          <div class="entry">
+            <div class="entry-left">
+              <div class="entry-name">${escapeHtml(e.name)}</div>
+              <div class="entry-meta">${escapeHtml(e.code)} · ${fmtDateTime(d)} · ${escapeHtml(e.shift || '—')} shift</div>
+            </div>
+            <div class="entry-right">
+              <div class="entry-qty">${e.quantity === null ? '—' : e.quantity}</div>
+              <div class="entry-dir ${e.direction === 'Production → Warehouse' ? 'dir-prod' : 'dir-ware'}">${e.direction === 'Production → Warehouse' ? 'PROD→WH' : 'WH→PROD'}</div>
+            </div>
+          </div>`;
+      });
+      if(logs.length > 200){
+        rowsHtml += `<div style="padding:8px 0;color:var(--muted);font-size:11.5px;text-align:center;">Showing first 200 of ${logs.length} confirmed entries.</div>`;
+      }
+    }
+
+    list.innerHTML = `
+      <button id="backPreviewBtn" class="link-btn" style="color:var(--muted);margin-bottom:10px;">← Back to versions</button>
+      ${summary}
+      <div style="max-height:320px;overflow:auto;margin-bottom:14px;">${rowsHtml}</div>
+      <button id="restoreFromPreviewBtn" data-row="${row}" class="btn btn-save" style="width:100%;">Restore This Version</button>
+    `;
+
+    document.getElementById('backPreviewBtn').addEventListener('click', fetchBackupsList);
+    document.getElementById('restoreFromPreviewBtn').addEventListener('click', ()=> restoreBackup(row));
+  }catch(e){
+    console.error(e);
+    list.innerHTML = '<div style="padding:14px 0;color:var(--bad);font-size:13px;">Could not load that version — check your internet connection.</div>';
+  }
+}
+
+async function restoreBackup(row){
+  if(!confirm('Restore this version? The current data will be saved as a new snapshot first, then replaced with this older version for everyone.')) return;
+  try{
+    const res = await fetch(SYNC_URL + '?action=getBackup&row=' + row);
+    const data = await res.json();
+    if(!data || !data.value){ showStatus('Could not load that version'); return; }
+
+    const parsed = JSON.parse(data.value);
+    state.logs = parsed.logs || [];
+    state.pending = parsed.pending || [];
+    state.deleteRequests = parsed.deleteRequests || [];
+    state.editRequests = parsed.editRequests || [];
+    state.lastDirection = parsed.lastDirection || {};
+
+    await saveState();
+    renderPending();
+    renderLog();
+    renderDeleteRequests();
+    renderEditRequests();
+    document.getElementById('backupsModalOverlay').style.display = 'none';
+    showStatus('Version restored for everyone');
+  }catch(e){
+    console.error(e);
+    showStatus('Could not restore — check your internet connection and try again');
+  }
+}
+
+async function generateNextSerial(){
+  const now = new Date();
+  const ym = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0');
+
+  let counter = { ym: ym, seq: 0 };
+  try{
+    const res = await fetch(SYNC_URL + '?key=' + encodeURIComponent(SERIAL_COUNTER_KEY));
+    const data = await res.json();
+    if(data && data.value){
+      const parsed = JSON.parse(data.value);
+      if(parsed && parsed.ym === ym) counter = parsed;
+    }
+  }catch(e){
+    console.error('Could not fetch serial counter, starting from 1', e);
+  }
+
+  counter.seq = (counter.seq || 0) + 1;
+  counter.ym = ym;
+
+  try{
+    await fetch(SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ key: SERIAL_COUNTER_KEY, value: JSON.stringify(counter) })
+    });
+  }catch(e){
+    console.error('Could not save serial counter', e);
+  }
+
+  return ym + '-' + String(counter.seq).padStart(4, '0');
+}
+
+async function fetchCustomItems(){
+  try{
+    const res = await fetch(SYNC_URL + '?key=' + encodeURIComponent(ITEMS_DB_KEY));
+    const data = await res.json();
+    if(data && data.value){
+      const parsed = JSON.parse(data.value);
+      if(Array.isArray(parsed)) customItems = parsed;
+    }
+  }catch(e){
+    console.error('Could not fetch custom items', e);
+  }
+  rebuildItemMap();
+}
+
+async function saveCustomItems(){
+  try{
+    const res = await fetch(SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ key: ITEMS_DB_KEY, value: JSON.stringify(customItems) })
+    });
+    return res.ok;
+  }catch(e){
+    console.error(e);
+    return false;
+  }
+}
+
+let itemDbSearchText = '';
+
+function renderItemDb(){
+  const allItems = ITEMS.concat(customItems);
+  const text = itemDbSearchText.toLowerCase();
+  const filtered = text
+    ? allItems.filter(i => i.code.toLowerCase().includes(text) || i.name.toLowerCase().includes(text))
+    : allItems;
+
+  document.getElementById('itemDbCount').textContent = filtered.length + ' of ' + allItems.length + ' item(s)';
+
+  const list = document.getElementById('itemDbList');
+  if(!filtered.length){
+    list.innerHTML = '<div style="padding:14px 0;color:var(--muted);font-size:13px;">No items match this search.</div>';
+    return;
+  }
+
+  // Cap rendering for performance — search narrows it down further
+  const toRender = filtered.slice(0, 150);
+  list.innerHTML = '';
+  toRender.forEach(item => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);';
+    row.innerHTML = `
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(item.code)}" width="48" height="48" style="border-radius:6px;background:#fff;flex-shrink:0;">
+      <div style="min-width:0;flex:1;">
+        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(item.name)}</div>
+        <div style="font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace;">${escapeHtml(item.code)}</div>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+  if(filtered.length > 150){
+    const note = document.createElement('div');
+    note.style.cssText = 'text-align:center;color:var(--muted);font-size:11.5px;padding:8px 0;';
+    note.textContent = 'Showing first 150 results — refine your search to see more.';
+    list.appendChild(note);
+  }
+}
+
+async function addNewItem(){
+  const errEl = document.getElementById('itemDbError');
+  const code = document.getElementById('newItemCode').value.trim();
+  const name = document.getElementById('newItemName').value.trim();
+
+  if(!code || !name){
+    errEl.textContent = 'Enter both an item code and item name.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(itemMap[code]){
+    errEl.textContent = 'That item code already exists: "' + itemMap[code] + '"';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  customItems.push({ code, name });
+  const ok = await saveCustomItems();
+  if(ok){
+    errEl.style.display = 'none';
+    document.getElementById('newItemCode').value = '';
+    document.getElementById('newItemName').value = '';
+    renderItemDb();
+    showStatus('Item added — scannable in both apps now');
+  }else{
+    customItems.pop();
+    errEl.textContent = 'Could not save — check your internet connection and try again.';
+    errEl.style.display = 'block';
+  }
+}
+
+function getAllItemsMerged(){
+  // customItems override ITEMS entries with the same code (edits win)
+  const map = {};
+  ITEMS.forEach(i => map[i.code] = i.name);
+  customItems.forEach(i => map[i.code] = i.name);
+  return Object.keys(map).sort().map(code => ({ code, name: map[code] }));
+}
+
+function exportItemsToExcel(){
+  if(typeof XLSX === 'undefined'){ showStatus('Export library did not load — check your internet connection'); return; }
+  const all = getAllItemsMerged();
+
+  const aoa = [['Item Code', 'Item Name', 'Barcode']];
+  all.forEach(i => aoa.push([i.code, i.name, '']));
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  all.forEach((i, idx) => {
+    const rowNum = idx + 2; // +1 for header, +1 for 1-indexing
+    const cellRef = XLSX.utils.encode_cell({ r: idx + 1, c: 2 });
+    ws[cellRef] = {
+      t: 'str',
+      f: `IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=100x100&data="&ENCODEURL(A${rowNum}))`
+    };
+  });
+  ws['!cols'] = [{wch:16},{wch:50},{wch:16}];
+  ws['!rows'] = [{hpt:20}].concat(all.map(()=>({hpx:75})));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Items');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  XLSX.writeFile(wb, 'item_database_' + stamp + '.xlsx');
+  showStatus('Excel file downloaded — barcode column needs Microsoft 365 + internet to display');
+}
+
+function exportItemsToPdf(){
+  const all = getAllItemsMerged();
+  let rowsHtml = '';
+  all.forEach((i, idx) => {
+    rowsHtml += `<tr>
+      <td>${idx + 1}</td>
+      <td>${escapeHtml(i.code)}</td>
+      <td style="text-align:left;">${escapeHtml(i.name)}</td>
+      <td><img src="https://api.qrserver.com/v1/create-qr-code/?size=70x70&data=${encodeURIComponent(i.code)}" width="50" height="50"></td>
+    </tr>`;
+  });
+  const html = `
+    <div class="pf-page">
+      <div style="text-align:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:bold;">Item Database</div>
+        <div style="font-size:12px;color:#444;margin-top:4px;">${all.length} item(s) — generated ${fmtDateTime(new Date())}</div>
+      </div>
+      <table class="pf-table">
+        <thead><tr><th>#</th><th>Item Code</th><th>Item Name</th><th>Barcode</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+  document.getElementById('printForm').innerHTML = html;
+  showStatus('Loading barcodes and opening print dialog…');
+  setTimeout(()=>{ window.print(); }, 900);
+}
+
+async function handleItemsFileUpload(file){
+  if(typeof XLSX === 'undefined'){ showStatus('Import library did not load — check your internet connection'); return; }
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+    if(!rows.length){ showStatus('That file has no rows to import'); return; }
+
+    // Find the code/name columns flexibly, regardless of exact header casing
+    const sampleKeys = Object.keys(rows[0]);
+    const codeKey = sampleKeys.find(k => k.toLowerCase().includes('code'));
+    const nameKey = sampleKeys.find(k => k.toLowerCase().includes('name'));
+    if(!codeKey || !nameKey){
+      showStatus('Could not find "Item Code" / "Item Name" columns in that file');
+      return;
+    }
+
+    let added = 0, updated = 0;
+    rows.forEach(row => {
+      const code = String(row[codeKey] || '').trim();
+      const name = String(row[nameKey] || '').trim();
+      if(!code || !name) return;
+      const existingIdx = customItems.findIndex(i => i.code === code);
+      if(existingIdx >= 0){
+        customItems[existingIdx].name = name;
+        updated++;
+      }else{
+        customItems.push({ code, name });
+        added++;
+      }
+    });
+
+    const ok = await saveCustomItems();
+    if(ok){
+      renderItemDb();
+      showStatus(added + ' added, ' + updated + ' updated — synced to both apps');
+    }else{
+      showStatus('Could not save — check your internet connection and try again');
+    }
+  }catch(e){
+    console.error(e);
+    showStatus('Could not read that file — make sure it is a valid .xlsx');
+  }
+}
+
+function attemptLogin(){
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const match = accounts.find(a => a.username === u && a.password === p);
+  if(match){
+    authenticated = true;
+    currentUser = match;
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('appRoot').style.display = 'block';
+    document.getElementById('loginError').style.display = 'none';
+    loadState();
+    startPolling();
+  }else{
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
+document.getElementById('loginBtn').addEventListener('click', attemptLogin);
+document.getElementById('loginPass').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') attemptLogin(); });
+
+function renderTeamAccounts(){
+  const section = document.getElementById('teamAccountsSection');
+  if(!currentUser || !currentUser.isMain){
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  const list = document.getElementById('teamAccountsList');
+  list.innerHTML = '';
+  accounts.forEach((a, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);';
+    const actions = a.isMain
+      ? '<span style="font-size:11px;color:var(--muted);">Main account</span>'
+      : `<button data-idx="${i}" class="reset-acct-btn" style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;margin-right:8px;">Reset Password</button><button data-idx="${i}" class="remove-acct-btn" style="background:none;border:none;color:var(--bad);font-size:11px;cursor:pointer;">Remove</button>`;
+    row.innerHTML = `
+      <div>
+        <div style="font-size:13.5px;font-weight:600;">${escapeHtml(a.name)}</div>
+        <div style="font-size:11px;color:var(--muted);">${escapeHtml(a.username)}</div>
+      </div>
+      <div>${actions}</div>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('.remove-acct-btn').forEach(btn => btn.addEventListener('click', async ()=>{
+    const idx = Number(btn.dataset.idx);
+    if(!confirm('Remove this account? They will no longer be able to log in.')) return;
+    accounts.splice(idx, 1);
+    const ok = await saveAccounts();
+    if(ok){ showStatus('Account removed'); renderTeamAccounts(); }
+    else showStatus('Could not save — try again');
+  }));
+
+  list.querySelectorAll('.reset-acct-btn').forEach(btn => btn.addEventListener('click', async ()=>{
+    const idx = Number(btn.dataset.idx);
+    const newPass = prompt('Enter a new password for ' + accounts[idx].name + ':');
+    if(!newPass) return;
+    accounts[idx].password = newPass;
+    const ok = await saveAccounts();
+    if(ok){ showStatus('Password reset for ' + accounts[idx].name); }
+    else showStatus('Could not save — try again');
+  }));
+}
+
+document.getElementById('itemDbBtn').addEventListener('click', ()=>{
+  document.getElementById('itemDbSearch').value = '';
+  itemDbSearchText = '';
+  document.getElementById('newItemCode').value = '';
+  document.getElementById('newItemName').value = '';
+  document.getElementById('itemDbError').style.display = 'none';
+  renderItemDb();
+  document.getElementById('itemDbModalOverlay').style.display = 'flex';
+});
+
+document.getElementById('backupsBtn').addEventListener('click', ()=>{
+  document.getElementById('backupsModalOverlay').style.display = 'flex';
+  fetchBackupsList();
+});
+
+document.getElementById('backupsCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('backupsModalOverlay').style.display = 'none';
+});
+
+document.getElementById('itemDbSearch').addEventListener('input', (e)=>{
+  itemDbSearchText = e.target.value.trim();
+  renderItemDb();
+});
+
+document.getElementById('addItemBtn').addEventListener('click', addNewItem);
+
+document.getElementById('exportItemsExcelBtn').addEventListener('click', exportItemsToExcel);
+document.getElementById('exportItemsPdfBtn').addEventListener('click', exportItemsToPdf);
+document.getElementById('uploadItemsFile').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  handleItemsFileUpload(file);
+  e.target.value = '';
+});
+
+document.getElementById('itemDbCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('itemDbModalOverlay').style.display = 'none';
+});
+
+document.getElementById('allMovementsBtn').addEventListener('click', ()=>{
+  document.getElementById('amFromDate').value = amFilterFrom || '';
+  document.getElementById('amToDate').value = amFilterTo || '';
+  document.getElementById('amTextSearch').value = amFilterText || '';
+  renderAllMovementsResults();
+  document.getElementById('allMovementsModalOverlay').style.display = 'flex';
+});
+
+document.querySelectorAll('.am-status-btn').forEach(btn => {
+  btn.addEventListener('click', ()=>{
+    amStatusFilter = btn.dataset.status;
+    renderAllMovementsResults();
+  });
+});
+
+document.getElementById('amFromDate').addEventListener('change', (e)=>{
+  amFilterFrom = e.target.value || null;
+  renderAllMovementsResults();
+});
+document.getElementById('amToDate').addEventListener('change', (e)=>{
+  amFilterTo = e.target.value || null;
+  renderAllMovementsResults();
+});
+document.getElementById('amTextSearch').addEventListener('input', (e)=>{
+  amFilterText = e.target.value.trim();
+  renderAllMovementsResults();
+});
+document.getElementById('amClearBtn').addEventListener('click', ()=>{
+  amFilterFrom = null; amFilterTo = null; amFilterText = '';
+  document.getElementById('amFromDate').value = '';
+  document.getElementById('amToDate').value = '';
+  document.getElementById('amTextSearch').value = '';
+  renderAllMovementsResults();
+});
+document.getElementById('amCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('allMovementsModalOverlay').style.display = 'none';
+});
+
+document.getElementById('amPrintBtn').addEventListener('click', ()=>{
+  const ok = buildAndPrintAllMovements();
+  if(!ok) return;
+  showStatus('Report built — opening print dialog…');
+  setTimeout(()=>{ window.print(); }, 200);
+});
+
+document.getElementById('amExcelBtn').addEventListener('click', ()=>{
+  exportAllMovementsToExcel();
+});
+
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  document.getElementById('myAccountName').textContent = currentUser.name;
+  document.getElementById('setCurrentPass').value = '';
+  document.getElementById('setNewName').value = currentUser.name;
+  document.getElementById('setNewUser').value = currentUser.username;
+  document.getElementById('setNewPass').value = '';
+  document.getElementById('setConfirmPass').value = '';
+  document.getElementById('settingsError').style.display = 'none';
+  document.getElementById('addAcctName').value = '';
+  document.getElementById('addAcctUser').value = '';
+  document.getElementById('addAcctPass').value = '';
+  renderTeamAccounts();
+  document.getElementById('settingsModalOverlay').style.display = 'flex';
+});
+
+document.getElementById('settingsCancelBtn').addEventListener('click', ()=>{
+  document.getElementById('settingsModalOverlay').style.display = 'none';
+});
+
+document.getElementById('settingsSaveBtn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('settingsError');
+  const currentPass = document.getElementById('setCurrentPass').value;
+  const newName = document.getElementById('setNewName').value.trim();
+  const newUser = document.getElementById('setNewUser').value.trim();
+  const newPass = document.getElementById('setNewPass').value;
+  const confirmPass = document.getElementById('setConfirmPass').value;
+
+  if(currentPass !== currentUser.password){
+    errEl.textContent = 'Current password is incorrect.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(!newName || !newUser){
+    errEl.textContent = 'Display name and username cannot be empty.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(newPass && newPass !== confirmPass){
+    errEl.textContent = 'New password and confirmation do not match.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const dup = accounts.find(a => a !== currentUser && a.username === newUser);
+  if(dup){
+    errEl.textContent = 'That username is already used by another account.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  currentUser.name = newName;
+  currentUser.username = newUser;
+  if(newPass) currentUser.password = newPass;
+
+  const ok = await saveAccounts();
+  if(ok){
+    document.getElementById('settingsModalOverlay').style.display = 'none';
+    showStatus('Your account was updated');
+  }else{
+    errEl.textContent = 'Could not save — check your internet connection and try again.';
+    errEl.style.display = 'block';
+  }
+});
+
+document.getElementById('addAcctBtn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('settingsError');
+  const name = document.getElementById('addAcctName').value.trim();
+  const username = document.getElementById('addAcctUser').value.trim();
+  const password = document.getElementById('addAcctPass').value;
+
+  if(!name || !username || !password){
+    errEl.textContent = 'Fill in name, username, and password to add an account.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(accounts.find(a => a.username === username)){
+    errEl.textContent = 'That username is already taken.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  accounts.push({ username, password, name, isMain: false });
+  const ok = await saveAccounts();
+  if(ok){
+    errEl.style.display = 'none';
+    document.getElementById('addAcctName').value = '';
+    document.getElementById('addAcctUser').value = '';
+    document.getElementById('addAcctPass').value = '';
+    renderTeamAccounts();
+    showStatus('Account added — share the username/password with them');
+  }else{
+    errEl.textContent = 'Could not save — try again.';
+    errEl.style.display = 'block';
+  }
+});
+
+document.getElementById('refreshBtn').addEventListener('click', async ()=>{
+  showStatus('Refreshing…');
+  await loadState(true);
+  showStatus('Up to date');
+});
+
+document.getElementById('clearNotificationsBtn').addEventListener('click', ()=>{
+  notifications = [];
+  renderNotifications();
+});
+
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  authenticated = false;
+  currentUser = null;
+  if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+});
+
+/* ---------------- Event wiring ---------------- */
+
+document.getElementById('scanBtn').addEventListener('click', openScanner);
+document.getElementById('cancelScanBtn').addEventListener('click', closeScanner);
+
+document.getElementById('photoInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const tempScanner = new Html5Qrcode("reader");
+    const result = await tempScanner.scanFile(file, false);
+    handleScanResult(String(result).trim());
+  }catch(err){
+    showStatus('Could not read a QR code in that photo — try again or type the code manually');
+  }
+  e.target.value = '';
+});
+
+document.getElementById('manualCodeBtn').addEventListener('click', ()=>{
+  const val = document.getElementById('manualCodeInput').value.trim();
+  if(!val){ showStatus('Type a code first'); return; }
+  handleScanResult(val);
+  document.getElementById('manualCodeInput').value = '';
+});
+document.getElementById('manualCodeInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ document.getElementById('manualCodeBtn').click(); }
+});
+document.getElementById('cancelResultBtn').addEventListener('click', ()=>{
+  document.getElementById('resultCard').style.display = 'none';
+  currentScan = null;
+  editingIndex = null;
+  editingSource = null;
+});
+document.getElementById('optProdWare').addEventListener('click', ()=> selectDirection('Production → Warehouse'));
+document.getElementById('optWareProd').addEventListener('click', ()=> selectDirection('Warehouse → Production'));
+document.getElementById('shiftDay').addEventListener('click', ()=> selectShift('DAY'));
+document.getElementById('shiftNight').addEventListener('click', ()=> selectShift('NIGHT'));
+document.getElementById('saveBtn').addEventListener('click', saveScan);
+document.getElementById('exportBtn').addEventListener('click', ()=> exportToExcel());
+document.getElementById('resetBtn').addEventListener('click', async ()=>{
+  if(!confirm('Clear the entire confirmed log for everyone? This cannot be undone.')) return;
+  state.logs = [];
+  selectedLogIds.clear();
+  await saveState();
+  renderLog();
+  showStatus('Confirmed log cleared');
+});
+
+document.getElementById('selectAllChk').addEventListener('change', (e)=>{
+  const checked = e.target.checked;
+  document.querySelectorAll('.entry-check').forEach(c => {
+    c.checked = checked;
+    if(checked) selectedLogIds.add(c.dataset.id);
+    else selectedLogIds.delete(c.dataset.id);
+  });
+});
+
+document.getElementById('generateFormBtn').addEventListener('click', ()=>{
+  const idxs = getSelectedIndices();
+  if(!idxs.length){ showStatus('Select at least one confirmed entry first'); return; }
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('formDate').value = today;
+  const shifts = [...new Set(idxs.map(i => state.logs[i].shift).filter(Boolean))];
+  document.getElementById('formShift').value = shifts.length === 1 ? shifts[0] : shifts.join(' / ');
+  document.getElementById('reqDeptPreview').textContent = CONFIG.role === 'production' ? 'WH' : 'PR';
+  document.getElementById('issueDeptPreview').textContent = CONFIG.role === 'production' ? 'PR' : 'WH';
+  document.getElementById('sumQuantitiesChk').checked = false;
+  document.getElementById('formModalOverlay').style.display = 'flex';
+});
+
+document.getElementById('formCancelBtn').addEventListener('click', ()=>{
+  document.getElementById('formModalOverlay').style.display = 'none';
+});
+
+document.getElementById('formPrintBtn').addEventListener('click', async ()=>{
+  showStatus('Generating serial number(s)…');
+  const ok = await buildPrintForm();
+  if(!ok) return;
+  document.getElementById('formModalOverlay').style.display = 'none';
+  showStatus('Form built — opening print dialog…');
+  setTimeout(()=>{ window.print(); }, 200);
+});
+
+document.getElementById('printHistoryBtn').addEventListener('click', ()=>{
+  const ok = buildAndPrintHistory();
+  if(!ok) return;
+  showStatus('Report built — opening print dialog…');
+  setTimeout(()=>{ window.print(); }, 200);
+});
+
+document.getElementById('formExcelBtn').addEventListener('click', ()=>{
+  const idxs = getSelectedIndices();
+  if(!idxs.length){ showStatus('Select at least one confirmed entry first'); return; }
+  const shouldSum = document.getElementById('sumQuantitiesChk').checked;
+  let entries = idxs.map(i => state.logs[i]);
+  if(shouldSum){
+    // Sum within each day+shift group, same rule as the PDF
+    const groups = {};
+    entries.forEach(e => {
+      const d = e.timestamp ? e.timestamp.slice(0,10) : '';
+      const s = e.shift || 'Unspecified';
+      const key = d + '|' + s;
+      if(!groups[key]) groups[key] = [];
+      groups[key].push(e);
+    });
+    entries = Object.values(groups).flatMap(list => aggregateByCode(list));
+  }
+  exportToExcel(entries, 'WH-PRO-1-F-12_selected');
+});
+
+/* ---------------- Search / filter wiring ---------------- */
+
+document.getElementById('pendingSearchBtn').addEventListener('click', ()=>{
+  const bar = document.getElementById('pendingFilterBar');
+  bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+});
+document.getElementById('pendingTextSearch').addEventListener('input', (e)=>{
+  pendingFilterText = e.target.value.trim();
+  renderPending();
+});
+document.getElementById('pendingFromDate').addEventListener('change', (e)=>{
+  pendingFilterFrom = e.target.value || null;
+  renderPending();
+});
+document.getElementById('pendingToDate').addEventListener('change', (e)=>{
+  pendingFilterTo = e.target.value || null;
+  renderPending();
+});
+document.getElementById('pendingClearFilter').addEventListener('click', ()=>{
+  pendingFilterFrom = null; pendingFilterTo = null; pendingFilterText = '';
+  document.getElementById('pendingFromDate').value = '';
+  document.getElementById('pendingToDate').value = '';
+  document.getElementById('pendingTextSearch').value = '';
+  renderPending();
+});
+
+document.getElementById('logSearchBtn').addEventListener('click', ()=>{
+  const bar = document.getElementById('logFilterBar');
+  bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+});
+document.getElementById('logTextSearch').addEventListener('input', (e)=>{
+  logFilterText = e.target.value.trim();
+  renderLog();
+});
+document.getElementById('logFromDate').addEventListener('change', (e)=>{
+  logFilterFrom = e.target.value || null;
+  renderLog();
+});
+document.getElementById('logToDate').addEventListener('change', (e)=>{
+  logFilterTo = e.target.value || null;
+  renderLog();
+});
+document.getElementById('logClearFilter').addEventListener('click', ()=>{
+  logFilterFrom = null; logFilterTo = null; logFilterText = '';
+  document.getElementById('logFromDate').value = '';
+  document.getElementById('logToDate').value = '';
+  document.getElementById('logTextSearch').value = '';
+  renderLog();
+});
+
+fetchAccounts();
+fetchCustomItems();
+</script>
+</body>
+</html>
